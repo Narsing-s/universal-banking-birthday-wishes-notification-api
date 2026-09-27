@@ -1,4 +1,4 @@
-name: One-time API CORS Fix
+name: One-time API CORS Fix\n# Triggered automatically once to apply the safe server-side response-header fix.
 
 on:
   workflow_dispatch:
