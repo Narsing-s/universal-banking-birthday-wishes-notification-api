@@ -53,6 +53,27 @@ main{padding:24px 20px 50px}.toolbar{display:flex;justify-content:space-between;
   function maskAccount(v){const s=String(v==null?"":v);return s.length>4?"****"+s.slice(-4):s;}
   function escapeHtml(v){return String(v==null?"":v).replace(/[&<>"']/g,function(m){return {"&":"&amp;","<":"&lt;",">":"&gt;",""":"&quot;","'":"&#039;"}[m];});}
   function parseDate(v){if(!v)return null;const d=new Date(v);return Number.isNaN(d.getTime())?null:d;}
+  function normalizeCustomer(c){
+    c=c&&typeof c==="object"?c:{};
+    return {
+      name:c.name??c.FULLNAME??c.fullName??"",
+      birthday:c.birthday??c.DATEOFBIRTH??c.dateOfBirth??"",
+      email:c.email??c.EMAIL??"",
+      bankName:c.bankName??c.BANKNAME??"",
+      account:c.account??c.ACCOUNTNUMBER??"",
+      sent:Boolean(c.sent??c.BIRTHDAY_WISH_SENT??false),
+      sentDate:c.sentDate??c.BIRTHDAY_WISH_SENT_DATE??null
+    };
+  }
+  function normalizeCustomers(payload){
+    let list=[];
+    if(Array.isArray(payload)) list=payload;
+    else if(payload&&Array.isArray(payload.customers)) list=payload.customers;
+    else if(payload&&Array.isArray(payload.data)) list=payload.data;
+    else if(payload&&typeof payload==="object") list=[payload];
+    return list.map(normalizeCustomer);
+  }
+  
   function daysLeft(v){
     const d=parseDate(v); if(!d)return 9999;
     const now=new Date(); now.setHours(0,0,0,0);
@@ -146,9 +167,7 @@ main{padding:24px 20px 50px}.toolbar{display:flex;justify-content:space-between;
 
     try{
       const customerPayload=await fetchJson(CUSTOMERS_URL);
-      if(Array.isArray(customerPayload)) data.customers=customerPayload;
-      else if(Array.isArray(customerPayload.customers)) data.customers=customerPayload.customers;
-      else if(Array.isArray(customerPayload.data)) data.customers=customerPayload.data;
+      data.customers=normalizeCustomers(customerPayload);
       customersOk=true;
       $("customerStatus").textContent="● Live"; $("customerStatus").style.color="var(--green)";
       $("snowStatus").textContent="● Live"; $("snowStatus").style.color="var(--green)";
