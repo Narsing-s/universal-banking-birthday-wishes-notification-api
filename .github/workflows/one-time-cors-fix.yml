@@ -1,0 +1,72 @@
+name: One-time API CORS Fix
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ["main"]
+    paths:
+      - ".github/workflows/one-time-cors-fix.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  fix-cors:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Fix Mule HTTP CORS responses
+        shell: python
+        run: |
+          from pathlib import Path
+          import re
+
+          p = Path("src/main/mule/universal-banking-birthday-wishes-notification-api.xml")
+          s = p.read_text(encoding="utf-8")
+
+          response = '''<http:response>
+              <http:headers><![CDATA[#[{
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Methods": "GET,OPTIONS",
+                "Access-Control-Allow-Headers": "Content-Type,Authorization"
+              }]]]></http:headers>
+            </http:response>'''
+
+          targets = [
+              'path="/api/dashboard" allowedMethods="GET"',
+              'path="/api/customers" allowedMethods="GET"'
+          ]
+
+          for target in targets:
+              pattern = r'(<http:listener[^>]*' + re.escape(target) + r'[^>]*)\s*/>'
+              s, n = re.subn(pattern, lambda m: m.group(1) + ">\n\t\t" + response.replace("\n", "\n\t\t") + "\n\t</http:listener>", s, count=1)
+              if n != 1:
+                  raise SystemExit(f"Could not update listener: {target}")
+
+          s = re.sub(
+              r'\n\s*<set-property propertyName="Access-Control-Allow-Origin" value="\*" />'
+              r'\n\s*<set-property propertyName="Access-Control-Allow-Methods" value="GET,OPTIONS" />'
+              r'\n\s*<set-property propertyName="Access-Control-Allow-Headers" value="Content-Type,Authorization" />',
+              "",
+              s
+          )
+
+          p.write_text(s, encoding="utf-8")
+          print("CORS response configuration updated without printing repository secrets.")
+
+      - name: Commit and push
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/main/mule/universal-banking-birthday-wishes-notification-api.xml
+          if git diff --cached --quiet; then
+            echo "No changes required."
+            exit 0
+          fi
+          git commit -m "fix: return CORS headers from Mule HTTP APIs"
+          git push origin HEAD:main
