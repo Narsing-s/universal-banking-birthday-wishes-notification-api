@@ -9,51 +9,174 @@
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
 header{background:linear-gradient(135deg,#111827,#3730a3);color:white;padding:26px 20px}.wrap{max-width:1200px;margin:auto}.top{display:flex;justify-content:space-between;gap:20px;align-items:center}.eyebrow{font-size:12px;letter-spacing:.12em;text-transform:uppercase;opacity:.7}.top h1{margin:7px 0 4px;font-size:30px}.top p{margin:0;color:#d9def5}.pill{border:1px solid #ffffff33;background:#ffffff14;padding:8px 12px;border-radius:999px;font-size:12px}
 main{padding:24px 20px 50px}.toolbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;gap:12px}.toolbar small{color:var(--muted)}button{border:0;border-radius:10px;padding:10px 14px;background:var(--accent);color:white;font-weight:650;cursor:pointer}button.secondary{background:white;color:var(--text);border:1px solid var(--line)}
-.metrics{display:grid;grid-template-columns:repeat(5,1fr);gap:14px}.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px;box-shadow:var(--shadow)}.metric{font-size:27px;font-weight:800}.label{font-size:12px;color:var(--muted);margin-top:5px}.delta{font-size:12px;margin-top:12px;color:var(--green)}
-.grid2{display:grid;grid-template-columns:1.35fr .85fr;gap:16px;margin-top:16px}.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-top:16px}.card h2{font-size:17px;margin:0 0 15px}.chart{height:220px;display:flex;align-items:end;gap:7px;padding:12px 4px 4px;border-bottom:1px solid var(--line)}.bar{flex:1;min-width:5px;background:#6366f1;border-radius:7px 7px 2px 2px;position:relative}.bar span{position:absolute;bottom:-22px;width:100%;text-align:center;font-size:9px;color:var(--muted)}.legend{display:flex;gap:18px;font-size:12px;color:var(--muted);margin-top:16px}.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px}.donut{width:170px;height:170px;border-radius:50%;margin:8px auto;background:conic-gradient(#0f9d68 0 0%,#e7ad42 0 100%);display:grid;place-items:center}.donut:after{content:"—";white-space:pre;text-align:center;width:105px;height:105px;background:white;border-radius:50%;display:grid;place-items:center;font-size:18px;font-weight:800}.center{text-align:center}.tablewrap{overflow:auto}.filters{display:flex;gap:8px;margin-bottom:12px}.filters input,.filters select{padding:10px;border:1px solid var(--line);border-radius:9px;background:white;outline:none}table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;padding:12px 9px;border-bottom:1px solid var(--line);white-space:nowrap}th{font-size:11px;text-transform:uppercase;color:var(--muted)}.status{padding:5px 8px;border-radius:999px;font-size:11px;font-weight:700}.upcoming{background:#eef2ff;color:#4338ca}.sent{background:#e8f7f0;color:#087443}.pending{background:#fff4dc;color:#986300}.error{display:none;margin-bottom:16px;padding:13px 15px;border-radius:12px;background:#fff0f0;border:1px solid #efb0b0;color:#9b2020;font-size:13px}.notice{margin-top:16px;padding:13px 15px;border-radius:12px;background:#eef7ff;border:1px solid #b9d9f5;color:#214d70;font-size:12px;line-height:1.5}
-@media(max-width:1000px){.metrics{grid-template-columns:repeat(3,1fr)}.grid2,.grid3{grid-template-columns:1fr}}@media(max-width:620px){.metrics{grid-template-columns:1fr 1fr}.top{align-items:flex-start}.pill{display:none}.filters{flex-wrap:wrap}}
+.metrics{display:grid;grid-template-columns:repeat(6,1fr);gap:14px}.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px;box-shadow:var(--shadow)}.metric{font-size:27px;font-weight:800}.label{font-size:12px;color:var(--muted);margin-top:5px}.delta{font-size:12px;margin-top:12px;color:var(--green)}
+.grid2{display:grid;grid-template-columns:1.35fr .85fr;gap:16px;margin-top:16px}.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-top:16px}.card h2{font-size:17px;margin:0 0 15px}.chart{height:220px;display:flex;align-items:end;gap:7px;padding:12px 4px 4px;border-bottom:1px solid var(--line)}.bar{flex:1;min-width:5px;background:#6366f1;border-radius:7px 7px 2px 2px;position:relative}.bar span{position:absolute;bottom:-22px;width:100%;text-align:center;font-size:9px;color:var(--muted)}.legend{display:flex;gap:18px;font-size:12px;color:var(--muted);margin-top:16px}.donut{width:170px;height:170px;border-radius:50%;margin:8px auto;background:conic-gradient(#0f9d68 0 0%,#e7ad42 0 100%);display:grid;place-items:center}.donut:after{content:"";width:105px;height:105px;background:white;border-radius:50%;display:grid;place-items:center}.center{text-align:center}.tablewrap{overflow:auto}.filters{display:flex;gap:8px;margin-bottom:12px}.filters input,.filters select{padding:10px;border:1px solid var(--line);border-radius:9px;background:white;outline:none}table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;padding:12px 9px;border-bottom:1px solid var(--line);white-space:nowrap}th{font-size:11px;text-transform:uppercase;color:var(--muted)}.status{padding:5px 8px;border-radius:999px;font-size:11px;font-weight:700}.sent{background:#e8f7f0;color:#087443}.pending{background:#fff4dc;color:#986300}.error{display:none;margin-bottom:16px;padding:13px 15px;border-radius:12px;background:#fff0f0;border:1px solid #efb0b0;color:#9b2020;font-size:13px}.notice{margin-top:16px;padding:13px 15px;border-radius:12px;background:#eef7ff;border:1px solid #b9d9f5;color:#214d70;font-size:12px;line-height:1.5}
+@media(max-width:1100px){.metrics{grid-template-columns:repeat(3,1fr)}}@media(max-width:1000px){.grid2,.grid3{grid-template-columns:1fr}}@media(max-width:620px){.metrics{grid-template-columns:1fr 1fr}.top{align-items:flex-start}.pill{display:none}.filters{flex-wrap:wrap}}
 </style>
 </head>
 <body>
 <header><div class="wrap"><div class="top"><div><div class="eyebrow">MuleSoft • Snowflake • SMTP</div><h1>Universal Banking Birthday Notification Center</h1><p>Live Snowflake customers • scheduled birthday detection • email delivery tracking</p></div><div class="pill" id="apiStatus">CONNECTING API…</div></div></div></header>
 <main class="wrap">
 <div id="error" class="error"></div>
-<div class="toolbar"><small id="updated">Loading live data from Snowflake…</small><button class="secondary" onclick="loadDashboard()">↻ Refresh</button></div>
+<div class="toolbar"><small id="updated">Loading live data…</small><button class="secondary" id="refreshBtn" type="button">↻ Refresh</button></div>
 <section class="metrics">
-<div class="card"><div class="metric" id="totalCustomers">—</div><div class="label">Total customers</div><div class="delta">Active customers in database</div></div>
+<div class="card"><div class="metric" id="totalCustomers">—</div><div class="label">Total customers</div><div class="delta">Active customers</div></div>
 <div class="card"><div class="metric" id="birthdaysToday">—</div><div class="label">Birthdays today</div><div class="delta">Active customers</div></div>
-<div class="card"><div class="metric" id="wishesSent">—</div><div class="label">Birthday wishes sent</div><div class="delta">Historical sent records</div></div>
+<div class="card"><div class="metric" id="wishesSent">—</div><div class="label">Birthday wishes sent</div><div class="delta">Sent records</div></div>
 <div class="card"><div class="metric" id="sentRecent">—</div><div class="label">Sent recently</div><div class="delta">Last 30 days</div></div>
-<div class="card"><div class="metric" id="pending">—</div><div class="label">Pending</div><div class="delta">Not marked as sent</div></div><div class="card"><div class="metric" id="customers30">—</div><div class="label">Birthdays next 30 days</div><div class="delta">Scheduled notification window</div></div>
+<div class="card"><div class="metric" id="pending">—</div><div class="label">Pending</div><div class="delta">Not marked sent</div></div>
+<div class="card"><div class="metric" id="customers30">—</div><div class="label">Birthdays next 30 days</div><div class="delta">Upcoming window</div></div>
 </section>
 <section class="grid2">
-<div class="card"><h2>📈 Emails sent — last 30 days</h2><div class="chart" id="emailChart"></div><div class="notice" style="margin-top:22px"><b>How the scheduler works:</b> MuleSoft checks Snowflake on its configured schedule, selects active customers whose month/day matches today, sends the birthday email to each customer email address, then records the send timestamp so the same customer is not repeatedly emailed during the same birthday year.</div></div>
+<div class="card"><h2>📈 Emails sent — last 30 days</h2><div class="chart" id="emailChart"></div><div class="notice" style="margin-top:22px"><b>Scheduler:</b> MuleSoft checks Snowflake, sends birthday email, and records the send timestamp for the current birthday year.</div></div>
 <div class="card center"><h2>✉️ Notification status</h2><div class="donut" id="donut"></div><div class="legend" style="justify-content:center"><span>Sent <b id="sentPct">—</b></span><span>Pending <b id="pendingPct">—</b></span></div></div>
 </section>
 <section class="grid3">
-<div class="card"><h2>🎂 Today & upcoming birthdays</h2><div id="todayList" class="smallList">Loading…</div><div class="chart" id="birthdayChart"></div></div>
+<div class="card"><h2>🎂 Today & upcoming birthdays</h2><div id="todayList" style="min-height:40px">Loading…</div><div class="chart" id="birthdayChart"></div></div>
 <div class="card"><h2>📅 Monthly birthday volume</h2><div class="chart" id="monthChart"></div></div>
-<div class="card"><h2>⚙️ Integration status</h2><p>Scheduler <b style="color:var(--green)">● Configured</b><br><small>Database birthday check runs automatically.</small></p><p>Snowflake <b id="snowStatus" style="color:var(--amber)">● Checking…</b></p><p>Dashboard API <b id="dashStatus" style="color:var(--amber)">● Checking…</b></p><p>SMTP <b style="color:var(--green)">● Configured in MuleSoft</b></p><p>Last API refresh<br><b id="lastRefresh">—</b></p></div>
+<div class="card"><h2>⚙️ Integration status</h2><p>Scheduler <b style="color:var(--green)">● Configured</b></p><p>Snowflake <b id="snowStatus" style="color:var(--amber)">● Checking…</b></p><p>Dashboard API <b id="dashStatus" style="color:var(--amber)">● Checking…</b></p><p>Customers API <b id="customerStatus" style="color:var(--amber)">● Checking…</b></p><p>SMTP <b style="color:var(--green)">● Configured</b></p><p>Last refresh<br><b id="lastRefresh">—</b></p></div>
 </section>
-<section class="card" style="margin-top:16px"><h2>👥 All active customers from Snowflake</h2><div class="filters"><input id="search" placeholder="Search customer..." oninput="renderTable()"><select id="range" onchange="renderTable()"><option value="all">All active customers</option><option value="today">Birthday today</option><option value="30">Birthdays in next 30 days</option><option value="7">Birthdays in next 7 days</option><option value="sent">Birthday wish already sent</option><option value="pending">Birthday wish pending</option></select></div><div class="tablewrap"><table><thead><tr><th>Customer</th><th>Bank</th><th>Account</th><th>Birthday</th><th>Days left</th><th>Email</th><th>Wish status</th><th>Sent date</th></tr></thead><tbody id="rows"><tr><td colspan="8">Loading…</td></tr></tbody></table></div></section>
-<div class="notice"><b>Live data:</b> This dashboard contains no hard-coded customers or demo metrics. All displayed customer and dashboard data is requested from the MuleSoft <code>/api/dashboard</code> read-only endpoint. The endpoint reads Snowflake; the Scheduler notification flow remains separate and continues to send birthday emails automatically. The UI contains zero customer records or demo users.</div>
+<section class="card" style="margin-top:16px"><h2>👥 All active customers from Snowflake</h2><div class="filters"><input id="search" placeholder="Search customer..." autocomplete="off"><select id="range"><option value="all">All active customers</option><option value="today">Birthday today</option><option value="30">Birthdays in next 30 days</option><option value="7">Birthdays in next 7 days</option><option value="sent">Birthday wish already sent</option><option value="pending">Birthday wish pending</option></select></div><div class="tablewrap"><table><thead><tr><th>Customer</th><th>Bank</th><th>Account</th><th>Birthday</th><th>Days left</th><th>Email</th><th>Wish status</th><th>Sent date</th></tr></thead><tbody id="rows"><tr><td colspan="8">Loading…</td></tr></tbody></table></div></section>
+<div class="notice"><b>Live data:</b> Customer records and metrics are loaded from the MuleSoft APIs. No demo customer records are embedded in this page.</div>
 </main>
 <script>
-const params=new URLSearchParams(location.search);
-const API_BASE=params.get("apiBase")||"https://birthday-notification-api-tlpwq.5sc6y6-2.usa-e2.cloudhub.io";
-const API_URL=API_BASE.replace(/\/$/,"")+"/api/dashboard";
-const CUSTOMERS_URL=API_BASE.replace(/\/$/,"")+"/api/customers";
-let data={metrics:{},customers:[],sentByDay:[],monthlyBirthdays:[]};
-const money=n=>Number(n||0).toLocaleString("en-IN");
-function maskAccount(v){const s=String(v??"");return s.length>4?"****"+s.slice(-4):s}
-function daysLeft(v){const now=new Date();now.setHours(0,0,0,0);const d=new Date(v);d.setFullYear(now.getFullYear());d.setHours(0,0,0,0);if(d<now)d.setFullYear(now.getFullYear()+1);return Math.ceil((d-now)/86400000)}
-function dateText(v){if(!v)return "—";return new Date(v).toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"})}
-function bars(id,items,labelFn){const el=document.getElementById(id);if(!items.length){el.innerHTML="<span style='color:var(--muted);font-size:12px'>No data</span>";return}const max=Math.max(1,...items.map(x=>x.count));el.innerHTML=items.map(x=>'<div class="bar" style="height:'+Math.max(10,x.count/max*175)+'px"><span>'+labelFn(x)+'</span></div>').join("")}
-function renderTable(){const q=document.getElementById("search").value.toLowerCase(),range=document.getElementById("range").value;const rows=data.customers.filter(c=>{const hay=[c.name,c.email,c.bankName,c.account].map(v=>String(v||"").toLowerCase()).join(" ");const d=daysLeft(c.birthday);return hay.includes(q)&&(range==="all"||(range==="today"&&d===0)||(range==="sent"&&c.sent)||(range==="pending"&&!c.sent)||(range!=="today"&&range!=="sent"&&range!=="pending"&&d<=Number(range)))});document.getElementById("rows").innerHTML=rows.map(c=>'<tr><td><b>'+escapeHtml(c.name)+'</b></td><td>'+escapeHtml(c.bankName||"—")+'</td><td>'+maskAccount(c.account)+'</td><td>'+dateText(c.birthday)+'</td><td>'+daysLeft(c.birthday)+'</td><td>'+escapeHtml(c.email||"—")+'</td><td><span class="status '+(c.sent?"sent":"pending")+'">'+(c.sent?"Sent":"Pending")+'</span></td><td>'+dateText(c.sentDate)+'</td></tr>').join("")||'<tr><td colspan="8">No matching customers</td></tr>'}
-function escapeHtml(v){return String(v??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]))}
-function render(){const m=data.metrics||{};document.getElementById("totalCustomers").textContent=money(m.totalCustomers);document.getElementById("birthdaysToday").textContent=money(m.birthdaysToday);document.getElementById("wishesSent").textContent=money(m.birthdayWishesSent);document.getElementById("sentRecent").textContent=money(m.sentLast30Days);document.getElementById("pending").textContent=money(m.pending);document.getElementById("customers30").textContent=money(data.customers.filter(c=>daysLeft(c.birthday)<=30).length);const total=(m.birthdayWishesSent||0)+(m.pending||0),pct=total?Math.round(m.birthdayWishesSent/total*100):0;document.getElementById("sentPct").textContent=pct+"%";document.getElementById("pendingPct").textContent=(100-pct)+"%";document.getElementById("donut").style.background="conic-gradient(#0f9d68 0 "+pct+"%,#e7ad42 "+pct+"% 100%)";bars("emailChart",data.sentByDay||[],x=>String(x.date).slice(5));bars("birthdayChart",(data.customers||[]).slice().sort((a,b)=>daysLeft(a.birthday)-daysLeft(b.birthday)).slice(0,10).map(c=>({count:1,label:String(c.name||"Customer").slice(0,10)})),x=>x.label);const today=(data.customers||[]).filter(c=>daysLeft(c.birthday)===0);document.getElementById("todayList").innerHTML=today.length?today.map(c=>'<div style="padding:8px 0;border-bottom:1px solid var(--line)"><b>'+escapeHtml(c.name)+'</b> · '+escapeHtml(c.bankName||"—")+'<br><small>'+escapeHtml(c.email||"—")+' · <span class="status '+(c.sent?"sent":"pending")+'">'+(c.sent?"Wish sent":"Pending email")+"</span></small></div>').join(""):'<div style="color:var(--muted);font-size:12px">No birthday customer found for today.</div>';bars("monthChart",(data.monthlyBirthdays||[]).map(x=>({count:x.count,label:x.month})),x=>x.label);renderTable()}
-async function loadDashboard(){document.getElementById("error").style.display="none";document.getElementById("apiStatus").textContent="CONNECTING API…";document.getElementById("updated").textContent="Loading live data from Snowflake…";try{const [dashboardResponse,customersResponse]=await Promise.all([fetch(API_URL,{headers:{Accept:"application/json"}}),fetch(CUSTOMERS_URL,{headers:{Accept:"application/json"}})]);if(!dashboardResponse.ok)throw new Error("Dashboard API returned HTTP "+dashboardResponse.status);if(!customersResponse.ok)throw new Error("Customers API returned HTTP "+customersResponse.status);const dashboard=await dashboardResponse.json();const customersPayload=await customersResponse.json();data={...dashboard,customers:customersPayload.customers||dashboard.customers||[]};render();document.getElementById("apiStatus").textContent="API CONNECTED";document.getElementById("apiStatus").style.background="#0f9d6833";document.getElementById("dashStatus").textContent="● Live";document.getElementById("dashStatus").style.color="var(--green)";document.getElementById("snowStatus").textContent="● Live";document.getElementById("snowStatus").style.color="var(--green)";document.getElementById("lastRefresh").textContent=new Date().toLocaleString("en-IN");document.getElementById("updated").textContent="Live data refreshed: "+new Date().toLocaleString("en-IN")}catch(e){document.getElementById("apiStatus").textContent="API UNAVAILABLE";document.getElementById("dashStatus").textContent="● Error";document.getElementById("dashStatus").style.color="var(--red)";document.getElementById("snowStatus").textContent="● Unavailable";document.getElementById("snowStatus").style.color="var(--red)";document.getElementById("error").textContent="Unable to load live database data: "+e.message+" — Dashboard: "+API_URL+" — Customers: "+CUSTOMERS_URL;document.getElementById("error").style.display="block";document.getElementById("updated").textContent="Live data unavailable";document.getElementById("rows").innerHTML='<tr><td colspan="8">Database data could not be loaded.</td></tr>'}}
-loadDashboard();
+"use strict";
+(function(){
+  const params=new URLSearchParams(window.location.search);
+  const API_BASE=(params.get("apiBase")||"https://birthday-notification-api-tlpwq.5sc6y6-2.usa-e2.cloudhub.io").replace(/\/$/,"");
+  const API_URL=API_BASE+"/api/dashboard";
+  const CUSTOMERS_URL=API_BASE+"/api/customers";
+  const data={metrics:{},customers:[],sentByDay:[],monthlyBirthdays:[]};
+
+  function $(id){return document.getElementById(id);}
+  function money(v){return Number(v||0).toLocaleString("en-IN");}
+  function maskAccount(v){const s=String(v==null?"":v);return s.length>4?"****"+s.slice(-4):s;}
+  function escapeHtml(v){return String(v==null?"":v).replace(/[&<>"']/g,function(m){return {"&":"&amp;","<":"&lt;",">":"&gt;",""":"&quot;","'":"&#039;"}[m];});}
+  function parseDate(v){if(!v)return null;const d=new Date(v);return Number.isNaN(d.getTime())?null:d;}
+  function daysLeft(v){
+    const d=parseDate(v); if(!d)return 9999;
+    const now=new Date(); now.setHours(0,0,0,0);
+    d.setFullYear(now.getFullYear()); d.setHours(0,0,0,0);
+    if(d<now)d.setFullYear(now.getFullYear()+1);
+    return Math.ceil((d-now)/86400000);
+  }
+  function dateText(v){const d=parseDate(v);return d?d.toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"}):"—";}
+
+  window.renderTable=function(){
+    const q=($("search").value||"").toLowerCase().trim();
+    const range=$("range").value;
+    const rows=data.customers.filter(function(c){
+      const hay=[c.name,c.email,c.bankName,c.account].map(function(v){return String(v||"").toLowerCase();}).join(" ");
+      const d=daysLeft(c.birthday);
+      const matchesRange=range==="all"||(range==="today"&&d===0)||(range==="sent"&&c.sent)||(range==="pending"&&!c.sent)||((range==="7"||range==="30")&&d<=Number(range));
+      return hay.includes(q)&&matchesRange;
+    });
+    $("rows").innerHTML=rows.length?rows.map(function(c){
+      return "<tr><td><b>"+escapeHtml(c.name)+"</b></td><td>"+escapeHtml(c.bankName||"—")+"</td><td>"+maskAccount(c.account)+"</td><td>"+dateText(c.birthday)+"</td><td>"+(daysLeft(c.birthday)>365?"—":daysLeft(c.birthday))+"</td><td>"+escapeHtml(c.email||"—")+"</td><td><span class="status "+(c.sent?"sent":"pending")+"">"+(c.sent?"Sent":"Pending")+"</span></td><td>"+dateText(c.sentDate)+"</td></tr>";
+    }).join(""):"<tr><td colspan="8">No matching customers</td></tr>";
+  };
+
+  function bars(id,items,labelFn){
+    const el=$(id);
+    if(!items.length){el.innerHTML="<span style="color:var(--muted);font-size:12px">No data</span>";return;}
+    const max=Math.max(1,...items.map(function(x){return Number(x.count)||0;}));
+    el.innerHTML=items.map(function(x){
+      const h=Math.max(10,((Number(x.count)||0)/max)*175);
+      return "<div class="bar" style="height:"+h+"px"><span>"+escapeHtml(labelFn(x))+"</span></div>";
+    }).join("");
+  }
+
+  function render(){
+    const m=data.metrics||{};
+    $("totalCustomers").textContent=money(m.totalCustomers);
+    $("birthdaysToday").textContent=money(m.birthdaysToday);
+    $("wishesSent").textContent=money(m.birthdayWishesSent);
+    $("sentRecent").textContent=money(m.sentLast30Days);
+    $("pending").textContent=money(m.pending);
+    $("customers30").textContent=money(data.customers.filter(function(c){return daysLeft(c.birthday)<=30;}).length);
+
+    const total=(Number(m.birthdayWishesSent)||0)+(Number(m.pending)||0);
+    const pct=total?Math.round((Number(m.birthdayWishesSent)||0)/total*100):0;
+    $("sentPct").textContent=pct+"%";
+    $("pendingPct").textContent=(100-pct)+"%";
+    $("donut").style.background="conic-gradient(#0f9d68 0 "+pct+"%,#e7ad42 "+pct+"% 100%)";
+
+    bars("emailChart",data.sentByDay||[],function(x){return String(x.date||"").slice(5);});
+    const upcoming=data.customers.slice().sort(function(a,b){return daysLeft(a.birthday)-daysLeft(b.birthday);}).slice(0,10).map(function(c){return {count:1,label:String(c.name||"Customer").slice(0,10)};});
+    bars("birthdayChart",upcoming,function(x){return x.label;});
+    bars("monthChart",(data.monthlyBirthdays||[]).map(function(x){return {count:x.count,label:x.month};}),function(x){return x.label;});
+
+    const today=data.customers.filter(function(c){return daysLeft(c.birthday)===0;});
+    $("todayList").innerHTML=today.length?today.map(function(c){
+      return "<div style="padding:8px 0;border-bottom:1px solid var(--line)"><b>"+escapeHtml(c.name)+"</b> · "+escapeHtml(c.bankName||"—")+"<br><small>"+escapeHtml(c.email||"—")+" · <span class="status "+(c.sent?"sent":"pending")+"">"+(c.sent?"Wish sent":"Pending email")+"</span></small></div>";
+    }).join(""):"<div style="color:var(--muted);font-size:12px">No birthday customer found for today.</div>";
+    window.renderTable();
+  }
+
+  async function fetchJson(url){
+    const controller=new AbortController();
+    const timer=setTimeout(function(){controller.abort();},15000);
+    try{
+      const response=await fetch(url,{method:"GET",headers:{Accept:"application/json"},cache:"no-store",signal:controller.signal});
+      const text=await response.text();
+      if(!response.ok)throw new Error("HTTP "+response.status+(text?" — "+text.slice(0,180):""));
+      try{return JSON.parse(text);}catch(e){throw new Error("API returned non-JSON data");}
+    }finally{clearTimeout(timer);}
+  }
+
+  async function loadDashboard(){
+    $("error").style.display="none";
+    $("apiStatus").textContent="CONNECTING API…";
+    $("updated").textContent="Loading live data…";
+    let dashboardOk=false,customersOk=false;
+    const errors=[];
+
+    try{
+      const dashboard=await fetchJson(API_URL);
+      data.metrics=dashboard.metrics||{};
+      data.sentByDay=Array.isArray(dashboard.sentByDay)?dashboard.sentByDay:[];
+      data.monthlyBirthdays=Array.isArray(dashboard.monthlyBirthdays)?dashboard.monthlyBirthdays:[];
+      if(Array.isArray(dashboard.customers))data.customers=dashboard.customers;
+      dashboardOk=true;
+      $("dashStatus").textContent="● Live"; $("dashStatus").style.color="var(--green)";
+    }catch(e){
+      errors.push("Dashboard: "+e.message);
+      $("dashStatus").textContent="● Error"; $("dashStatus").style.color="var(--red)";
+    }
+
+    try{
+      const customerPayload=await fetchJson(CUSTOMERS_URL);
+      if(Array.isArray(customerPayload.customers))data.customers=customerPayload.customers;
+      customersOk=true;
+      $("customerStatus").textContent="● Live"; $("customerStatus").style.color="var(--green)";
+      $("snowStatus").textContent="● Live"; $("snowStatus").style.color="var(--green)";
+    }catch(e){
+      errors.push("Customers: "+e.message);
+      $("customerStatus").textContent="● Error"; $("customerStatus").style.color="var(--red)";
+    }
+
+    render();
+    if(dashboardOk||customersOk){
+      $("apiStatus").textContent=dashboardOk&&customersOk?"API CONNECTED":"API PARTIAL";
+      $("apiStatus").style.background="#0f9d6833";
+      $("lastRefresh").textContent=new Date().toLocaleString("en-IN");
+      $("updated").textContent="Live data refreshed: "+new Date().toLocaleString("en-IN");
+    }else{
+      $("apiStatus").textContent="API UNAVAILABLE";
+      $("apiStatus").style.background="#d1434326";
+      $("updated").textContent="Live data unavailable";
+    }
+    if(errors.length){
+      $("error").textContent=errors.join(" | ")+" | API base: "+API_BASE;
+      $("error").style.display="block";
+    }
+  }
+
+  $("refreshBtn").addEventListener("click",loadDashboard);
+  $("search").addEventListener("input",window.renderTable);
+  $("range").addEventListener("change",window.renderTable);
+  loadDashboard();
+})();
 </script>
 </body>
 </html>
