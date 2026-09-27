@@ -151,6 +151,48 @@ This ensures:
 
 ---
 
+## Database Migration (Required)
+
+The Mule application uses three tracking columns in `BANK_CUSTOMER_DATA`: `STATUS`, `BIRTHDAY_WISH_SENT`, and `BIRTHDAY_WISH_SENT_DATE`. If the existing Snowflake table was created before these columns were introduced, deployment will fail with errors such as `invalid identifier 'BIRTHDAY_WISH_SENT'`.
+
+Run the migration below **once** before starting the Mule application:
+
+```sql
+ALTER TABLE MYDATABASE.PUBLIC.BANK_CUSTOMER_DATA
+    ADD COLUMN IF NOT EXISTS STATUS VARCHAR DEFAULT 'ACTIVE';
+
+ALTER TABLE MYDATABASE.PUBLIC.BANK_CUSTOMER_DATA
+    ADD COLUMN IF NOT EXISTS BIRTHDAY_WISH_SENT BOOLEAN DEFAULT FALSE;
+
+ALTER TABLE MYDATABASE.PUBLIC.BANK_CUSTOMER_DATA
+    ADD COLUMN IF NOT EXISTS BIRTHDAY_WISH_SENT_DATE TIMESTAMP_NTZ;
+
+UPDATE MYDATABASE.PUBLIC.BANK_CUSTOMER_DATA
+SET
+    STATUS = COALESCE(STATUS, 'ACTIVE'),
+    BIRTHDAY_WISH_SENT = COALESCE(BIRTHDAY_WISH_SENT, FALSE)
+WHERE STATUS IS NULL
+   OR BIRTHDAY_WISH_SENT IS NULL;
+```
+
+The same migration is committed at `database/migrations/001_birthday_notification_columns.sql`.
+
+Verify the final schema with:
+
+```sql
+DESC TABLE MYDATABASE.PUBLIC.BANK_CUSTOMER_DATA;
+```
+
+The result must contain at least:
+
+- `DATEOFBIRTH`
+- `EMAIL`
+- `ACCOUNTNUMBER`
+- `BANKNAME`
+- `STATUS`
+- `BIRTHDAY_WISH_SENT`
+- `BIRTHDAY_WISH_SENT_DATE`
+
 ## Scheduler Configuration
 
 ### Current Configuration
