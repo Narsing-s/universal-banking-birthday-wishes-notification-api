@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Birthday Wishes Notification API</title>
+<style>
+:root{--bg:#f5f7fb;--card:#fff;--text:#172033;--muted:#687386;--line:#e5e9f0;--accent:#4f46e5;--ok:#16834b;--shadow:0 12px 35px rgba(23,32,51,.08)}
+*{box-sizing:border-box}body{margin:0;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:var(--bg);color:var(--text)}
+header{background:linear-gradient(135deg,#111827,#312e81);color:#fff;padding:34px 20px}
+.wrap{max-width:1100px;margin:auto}.eyebrow{text-transform:uppercase;letter-spacing:.12em;font-size:12px;opacity:.72}.hero{display:flex;justify-content:space-between;gap:24px;align-items:end}.hero h1{font-size:clamp(28px,5vw,48px);margin:8px 0}.hero p{margin:0;max-width:720px;color:#d8dcf0;line-height:1.6}.badge{padding:8px 12px;border:1px solid rgba(255,255,255,.2);border-radius:999px;font-size:13px;white-space:nowrap}
+main{padding:28px 20px 50px}.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:20px;box-shadow:var(--shadow)}.metric{font-size:26px;font-weight:750}.label{color:var(--muted);font-size:13px;margin-top:5px}
+.section{margin-top:22px}.section h2{font-size:20px;margin:0 0 12px}.flow{display:grid;grid-template-columns:repeat(5,1fr);gap:12px}.step{padding:18px;border:1px solid var(--line);border-radius:15px;background:#fff}.num{display:inline-grid;place-items:center;width:28px;height:28px;border-radius:50%;background:#eef2ff;color:var(--accent);font-weight:700}.step h3{font-size:15px;margin:12px 0 6px}.step p{font-size:13px;color:var(--muted);line-height:1.5;margin:0}
+.links{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.link{display:block;text-decoration:none;color:inherit}.link strong{display:block;margin-bottom:6px}.link span{color:var(--muted);font-size:13px}
+.notice{margin-top:22px;padding:16px 18px;border-radius:14px;background:#fff8e6;border:1px solid #f1d79a;color:#674d0b;font-size:13px;line-height:1.55}
+footer{max-width:1100px;margin:0 auto;padding:0 20px 35px;color:var(--muted);font-size:12px}
+@media(max-width:850px){.grid{grid-template-columns:repeat(2,1fr)}.flow{grid-template-columns:1fr}.links{grid-template-columns:1fr}.hero{display:block}.badge{display:inline-block;margin-top:18px}}
+</style>
+</head>
+<body>
+<header><div class="wrap">
+<div class="eyebrow">MuleSoft • Banking Automation</div>
+<div class="hero"><div><h1>Birthday Wishes Notification</h1><p>Operational dashboard for the Universal Banking Birthday Wishes Notification API. The existing MuleSoft integration remains unchanged; this UI is a separate presentation layer.</p></div><div class="badge">Documentation UI</div></div>
+</div></header>
+<main class="wrap">
+<section class="grid">
+<div class="card"><div class="metric">Mule 4</div><div class="label">Integration runtime</div></div>
+<div class="card"><div class="metric">Snowflake</div><div class="label">Customer data source</div></div>
+<div class="card"><div class="metric">SMTP</div><div class="label">Birthday email delivery</div></div>
+<div class="card"><div class="metric">Scheduler</div><div class="label">Automated trigger</div></div>
+</section>
+
+<section class="section"><h2>Integration flow</h2><div class="flow">
+<div class="step"><span class="num">1</span><h3>Schedule</h3><p>Mule Scheduler starts the birthday processing flow.</p></div>
+<div class="step"><span class="num">2</span><h3>Find customers</h3><p>Birthday candidates are read from the configured Snowflake table.</p></div>
+<div class="step"><span class="num">3</span><h3>Build message</h3><p>Customer and bank information is transformed into the email template.</p></div>
+<div class="step"><span class="num">4</span><h3>Send wishes</h3><p>The configured SMTP service delivers the birthday notification.</p></div>
+<div class="step"><span class="num">5</span><h3>Mark processed</h3><p>The customer notification timestamp is updated in Snowflake.</p></div>
+</div></section>
+
+<section class="section"><h2>Project resources</h2><div class="links">
+<a class="card link" href="../README.md"><strong>Project README</strong><span>Overview, setup and MuleSoft project information.</span></a>
+<a class="card link" href="../exchange-docs/production-readiness.md"><strong>Production readiness</strong><span>Deployment, monitoring and operational checklist.</span></a>
+<a class="card link" href="../exchange-docs/security.md"><strong>Security guidance</strong><span>Credential, access and secret-management guidance.</span></a>
+</div></section>
+
+<div class="notice"><strong>Security note:</strong> This UI does not display credentials or customer data. Any credentials previously committed to a public repository should be rotated/revoked and replaced with secure runtime properties before production use.</div>
+</main>
+<footer>Separate static UI • No changes made to the existing Mule flow.</footer>
+</body>
+</html>
