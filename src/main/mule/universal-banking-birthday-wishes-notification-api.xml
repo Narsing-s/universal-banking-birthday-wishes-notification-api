@@ -56,12 +56,35 @@ WHERE STATUS = 'ACTIVE'
 ORDER BY DATEOFBIRTH
 ]]></snowflake:sql>
 		</snowflake:select>
+		<snowflake:select doc:name="Load daily sent counts" config-ref="Snowflake_Config">
+			<snowflake:sql><![CDATA[
+SELECT TO_DATE(BIRTHDAY_WISH_SENT_DATE) AS SENT_DATE, COUNT(*) AS SENT_COUNT
+FROM BANK_CUSTOMER_DATA
+WHERE STATUS = 'ACTIVE'
+  AND BIRTHDAY_WISH_SENT_DATE >= DATEADD(day, -29, CURRENT_DATE())
+GROUP BY TO_DATE(BIRTHDAY_WISH_SENT_DATE)
+ORDER BY SENT_DATE
+]]></snowflake:sql>
+		</snowflake:select>
+		<set-variable variableName="dailySent" value="#[payload]" doc:name="Store daily sent counts" />
+		<snowflake:select doc:name="Load monthly birthday counts" config-ref="Snowflake_Config">
+			<snowflake:sql><![CDATA[
+SELECT MONTH(DATEOFBIRTH) AS BIRTHDAY_MONTH, COUNT(*) AS BIRTHDAY_COUNT
+FROM BANK_CUSTOMER_DATA
+WHERE STATUS = 'ACTIVE'
+GROUP BY MONTH(DATEOFBIRTH)
+ORDER BY BIRTHDAY_MONTH
+]]></snowflake:sql>
+		</snowflake:select>
+		<set-variable variableName="monthlyBirthdays" value="#[payload]" doc:name="Store monthly birthday counts" />
+		<set-variable variableName="upcomingCustomers" value="#[payload]" doc:name="Store upcoming customers" />
+
 		<ee:transform doc:name="Build live dashboard response">
 			<ee:message>
 				<ee:set-payload><![CDATA[%dw 2.0
 output application/json
 var metrics = vars.metrics
-var customers = payload default []
+var customers = []
 ---
 {
   source: "Snowflake",
@@ -73,7 +96,11 @@ var customers = payload default []
     sentLast30Days: (metrics.SENT_LAST_30_DAYS default 0) as Number,
     pending: (metrics.PENDING default 0) as Number
   },
-  customers: customers map (c) -> {
+  sentByDay: vars.dailySent map (d) -> {date: d.SENT_DATE, count: (d.SENT_COUNT default 0) as Number},
+  monthlyBirthdays: vars.monthlyBirthdays map (m) -> {month: (m.BIRTHDAY_MONTH default 0) as Number, count: (m.BIRTHDAY_COUNT default 0) as Number},
+  customers: []
+} ++ {
+  customers: (vars.upcomingCustomers default []) map (c) -> {
     name: c.FULLNAME,
     account: c.ACCOUNTNUMBER,
     birthday: c.DATEOFBIRTH,
