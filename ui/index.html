@@ -108,29 +108,41 @@ main{padding:24px 20px 50px}.toolbar{display:flex;justify-content:space-between;
   }
 
   function render(){
-    const m=data.metrics||{};
-    $("totalCustomers").textContent=money(m.totalCustomers);
-    $("birthdaysToday").textContent=money(m.birthdaysToday);
-    $("wishesSent").textContent=money(m.birthdayWishesSent);
-    $("sentRecent").textContent=money(m.sentLast30Days);
-    $("pending").textContent=money(m.pending);
-    $("customers30").textContent=money(data.customers.filter(function(c){return daysLeft(c.birthday)<=30;}).length);
+    const customers=data.customers||[];
+    const todayCount=customers.filter(function(c){return daysLeft(c.birthday)===0;}).length;
+    const sentCount=customers.filter(function(c){return c.sent;}).length;
+    const pendingCount=Math.max(0,customers.length-sentCount);
+    const next30Count=customers.filter(function(c){const d=daysLeft(c.birthday);return d>=0&&d<=30;}).length;
+    const sentRecentCount=customers.filter(function(c){
+      if(!c.sentDate)return false;
+      const d=parseDate(c.sentDate); if(!d)return false;
+      return (Date.now()-d.getTime())<=30*86400000;
+    }).length;
 
-    const total=(Number(m.birthdayWishesSent)||0)+(Number(m.pending)||0);
-    const pct=total?Math.round((Number(m.birthdayWishesSent)||0)/total*100):0;
+    $("totalCustomers").textContent=money(customers.length);
+    $("birthdaysToday").textContent=money(todayCount);
+    $("wishesSent").textContent=money(sentCount);
+    $("sentRecent").textContent=money(sentRecentCount);
+    $("pending").textContent=money(pendingCount);
+    $("customers30").textContent=money(next30Count);
+
+    const total=customers.length;
+    const pct=total?Math.round(sentCount/total*100):0;
     $("sentPct").textContent=pct+"%";
     $("pendingPct").textContent=(100-pct)+"%";
     $("donut").style.background="conic-gradient(#0f9d68 0 "+pct+"%,#e7ad42 "+pct+"% 100%)";
 
     bars("emailChart",data.sentByDay||[],function(x){return String(x.date||"").slice(5);});
-    const upcoming=data.customers.slice().sort(function(a,b){return daysLeft(a.birthday)-daysLeft(b.birthday);}).slice(0,10).map(function(c){return {count:1,label:String(c.name||"Customer").slice(0,10)};});
+    const upcoming=customers.slice().sort(function(a,b){return daysLeft(a.birthday)-daysLeft(b.birthday);}).slice(0,10).map(function(c){return {count:1,label:String(c.name||"Customer").slice(0,10)};});
     bars("birthdayChart",upcoming,function(x){return x.label;});
     bars("monthChart",(data.monthlyBirthdays||[]).map(function(x){return {count:x.count,label:x.month};}),function(x){return x.label;});
 
-    const today=data.customers.filter(function(c){return daysLeft(c.birthday)===0;});
-    $("todayList").innerHTML=today.length?today.map(function(c){
-      return '<div style="padding:8px 0;border-bottom:1px solid var(--line)"><b>'+escapeHtml(c.name)+'</b> · '+escapeHtml(c.bankName||"—")+'<br><small>'+escapeHtml(c.email||"—")+' · <span class="status '+(c.sent?"sent":"pending")+'">'+(c.sent?"Wish sent":"Pending email")+'</span></small></div>';
-    }).join(""):"<div style="color:var(--muted);font-size:12px">No birthday customer found for today.</div>";
+    const todayTomorrow=customers.filter(function(c){const d=daysLeft(c.birthday);return d===0||d===1;}).sort(function(a,b){return daysLeft(a.birthday)-daysLeft(b.birthday);});
+    $("todayList").innerHTML=todayTomorrow.length?todayTomorrow.map(function(c){
+      const d=daysLeft(c.birthday);
+      const when=d===0?"Today":d===1?"Tomorrow":dateText(c.birthday);
+      return '<div style="padding:8px 0;border-bottom:1px solid var(--line)"><b>'+escapeHtml(c.name)+'</b> · '+escapeHtml(c.bankName||"—")+'<br><small>'+when+' · '+escapeHtml(c.email||"—")+' · <span class="status '+(c.sent?"sent":"pending")+'">'+(c.sent?"Wish sent":"Pending email")+'</span></small></div>';
+    }).join(""):"<div style="color:var(--muted);font-size:12px">No birthday customers found for today or tomorrow.</div>";
     window.renderTable();
   }
 
