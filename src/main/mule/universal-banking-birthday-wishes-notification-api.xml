@@ -9,7 +9,7 @@ http://www.mulesoft.org/schema/mule/email http://www.mulesoft.org/schema/mule/em
 http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
 http://www.mulesoft.org/schema/mule/sns http://www.mulesoft.org/schema/mule/sns/current/mule-sns.xsd">
 	<snowflake:snowflake-config name="Snowflake_Config" doc:name="Snowflake Config" doc:id="6a9c414f-fbe9-4ba3-8144-c1cba1091952" >
-		<snowflake:snowflake-connection accountName="VGVAFTP-IW26436" warehouse="COMPUTE_WH" database="MYDATABASE" schema="PUBLIC" user="NARSI" password="Narsing@1234567890" role="ACCOUNTADMIN" />
+		<snowflake:snowflake-connection accountName="${snowflake.account}" warehouse="COMPUTE_WH" database="MYDATABASE" schema="PUBLIC" user="${smtp.user}" password="${smtp.password}" role="ACCOUNTADMIN" />
 	</snowflake:snowflake-config>
 	<email:smtp-config name="Email_SMTP" doc:name="Email SMTP" doc:id="b991bfc6-6afd-4363-89ae-ea5b99fa5862" >
 		<email:smtp-connection host="smtp.gmail.com" port="587" user="narsingbeesetti22@gmail.com" password="emhj qbsf nscl nmud" >
@@ -21,6 +21,147 @@ http://www.mulesoft.org/schema/mule/sns http://www.mulesoft.org/schema/mule/sns/
 	<http:request-config name="HTTP_Request_configuration" doc:name="HTTP Request configuration" doc:id="134c1f4b-c2c0-4df9-89d9-ed02f7561c82" >
 		<http:request-connection host="api.ultramsg.com" />
 	</http:request-config>
+	<flow name="birthday-dashboard-api" doc:id="birthday-dashboard-api">
+		<http:listener config-ref="Dashboard_HTTP_Listener" path="/api/dashboard" allowedMethods="GET" doc:name="Dashboard API" />
+		<set-variable variableName="metrics" doc:name="Load dashboard metrics" value="#[null]" />
+		<snowflake:select doc:name="Load dashboard metrics" config-ref="Snowflake_Config">
+			<snowflake:sql><![CDATA[
+SELECT
+  COUNT(*) AS TOTAL_CUSTOMERS,
+  COUNT_IF(MONTH(DATEOFBIRTH) = MONTH(CURRENT_DATE()) AND DAY(DATEOFBIRTH) = DAY(CURRENT_DATE())) AS BIRTHDAYS_TODAY,
+  COUNT_IF(BIRTHDAY_WISH_SENT = TRUE) AS BIRTHDAY_WISHES_SENT,
+  COUNT_IF(BIRTHDAY_WISH_SENT_DATE >= DATEADD(day, -30, CURRENT_TIMESTAMP())) AS SENT_LAST_30_DAYS,
+  COUNT_IF(BIRTHDAY_WISH_SENT IS NULL OR BIRTHDAY_WISH_SENT = FALSE) AS PENDING
+FROM BANK_CUSTOMER_DATA
+WHERE STATUS = 'ACTIVE'
+]]></snowflake:sql>
+		</snowflake:select>
+		<set-variable variableName="metrics" value="#[payload[0]]" doc:name="Store metrics" />
+		<snowflake:select doc:name="Load upcoming customers" config-ref="Snowflake_Config">
+			<snowflake:sql><![CDATA[
+SELECT
+  FULLNAME,
+  ACCOUNTNUMBER,
+  DATEOFBIRTH,
+  EMAIL,
+  BANKNAME,
+  BIRTHDAY_WISH_SENT,
+  BIRTHDAY_WISH_SENT_DATE
+FROM BANK_CUSTOMER_DATA
+WHERE STATUS = 'ACTIVE'
+  AND (
+    DATEADD(year, DATEDIFF(year, DATEOFBIRTH, CURRENT_DATE()), DATEOFBIRTH) BETWEEN CURRENT_DATE() AND DATEADD(day, 30, CURRENT_DATE())
+    OR DATEADD(year, DATEDIFF(year, DATEOFBIRTH, CURRENT_DATE()) + 1, DATEOFBIRTH) BETWEEN CURRENT_DATE() AND DATEADD(day, 30, CURRENT_DATE())
+  )
+ORDER BY DATEOFBIRTH
+]]></snowflake:sql>
+		</snowflake:select>
+		<set-variable variableName="upcomingCustomers" value="#[payload]" doc:name="Store upcoming customers" />
+		<snowflake:select doc:name="Load daily sent counts" config-ref="Snowflake_Config">
+			<snowflake:sql><![CDATA[
+SELECT TO_DATE(BIRTHDAY_WISH_SENT_DATE) AS SENT_DATE, COUNT(*) AS SENT_COUNT
+FROM BANK_CUSTOMER_DATA
+WHERE STATUS = 'ACTIVE'
+  AND BIRTHDAY_WISH_SENT_DATE >= DATEADD(day, -29, CURRENT_DATE())
+GROUP BY TO_DATE(BIRTHDAY_WISH_SENT_DATE)
+ORDER BY SENT_DATE
+]]></snowflake:sql>
+		</snowflake:select>
+		<set-variable variableName="dailySent" value="#[payload]" doc:name="Store daily sent counts" />
+		<snowflake:select doc:name="Load monthly birthday counts" config-ref="Snowflake_Config">
+			<snowflake:sql><![CDATA[
+SELECT MONTH(DATEOFBIRTH) AS BIRTHDAY_MONTH, COUNT(*) AS BIRTHDAY_COUNT
+FROM BANK_CUSTOMER_DATA
+WHERE STATUS = 'ACTIVE'
+GROUP BY MONTH(DATEOFBIRTH)
+ORDER BY BIRTHDAY_MONTH
+]]></snowflake:sql>
+		</snowflake:select>
+		<set-variable variableName="monthlyBirthdays" value="#[payload]" doc:name="Store monthly birthday counts" />
+
+		<ee:transform doc:name="Build live dashboard response">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+var metrics = vars.metrics
+var customers = []
+---
+{
+  source: "Snowflake",
+  generatedAt: now(),
+  metrics: {
+    totalCustomers: (metrics.TOTAL_CUSTOMERS default 0) as Number,
+    birthdaysToday: (metrics.BIRTHDAYS_TODAY default 0) as Number,
+    birthdayWishesSent: (metrics.BIRTHDAY_WISHES_SENT default 0) as Number,
+    sentLast30Days: (metrics.SENT_LAST_30_DAYS default 0) as Number,
+    pending: (metrics.PENDING default 0) as Number
+  },
+  sentByDay: vars.dailySent map (d) -> {date: d.SENT_DATE, count: (d.SENT_COUNT default 0) as Number},
+  monthlyBirthdays: vars.monthlyBirthdays map (m) -> {month: (m.BIRTHDAY_MONTH default 0) as Number, count: (m.BIRTHDAY_COUNT default 0) as Number},
+  customers: []
+} ++ {
+  customers: (vars.upcomingCustomers default []) map (c) -> {
+    name: c.FULLNAME,
+    account: c.ACCOUNTNUMBER,
+    birthday: c.DATEOFBIRTH,
+    email: c.EMAIL,
+    bankName: c.BANKNAME,
+    sent: c.BIRTHDAY_WISH_SENT default false,
+    sentDate: c.BIRTHDAY_WISH_SENT_DATE
+  }
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<set-property propertyName="Access-Control-Allow-Origin" value="*" />
+		<set-property propertyName="Access-Control-Allow-Methods" value="GET,OPTIONS" />
+		<set-property propertyName="Access-Control-Allow-Headers" value="Content-Type,Authorization" />
+	</flow>
+
+	<flow name="birthday-customers-api" doc:id="birthday-customers-api">
+		<http:listener config-ref="Dashboard_HTTP_Listener" path="/api/customers" allowedMethods="GET" doc:name="Customers API" />
+		<snowflake:select doc:name="Load all active customers" config-ref="Snowflake_Config">
+			<snowflake:sql><![CDATA[
+SELECT
+  FULLNAME,
+  ACCOUNTNUMBER,
+  DATEOFBIRTH,
+  EMAIL,
+  BANKNAME,
+  BIRTHDAY_WISH_SENT,
+  BIRTHDAY_WISH_SENT_DATE,
+  STATUS
+FROM BANK_CUSTOMER_DATA
+WHERE STATUS = 'ACTIVE'
+ORDER BY FULLNAME
+]]></snowflake:sql>
+		</snowflake:select>
+		<ee:transform doc:name="Build live customer list">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+  source: "Snowflake",
+  generatedAt: now(),
+  count: sizeOf(payload),
+  customers: payload map (c) -> {
+    name: c.FULLNAME,
+    account: c.ACCOUNTNUMBER,
+    birthday: c.DATEOFBIRTH,
+    email: c.EMAIL,
+    bankName: c.BANKNAME,
+    status: c.STATUS,
+    sent: c.BIRTHDAY_WISH_SENT default false,
+    sentDate: c.BIRTHDAY_WISH_SENT_DATE
+  }
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<set-property propertyName="Access-Control-Allow-Origin" value="*" />
+		<set-property propertyName="Access-Control-Allow-Methods" value="GET,OPTIONS" />
+		<set-property propertyName="Access-Control-Allow-Headers" value="Content-Type,Authorization" />
+	</flow>
+
 	<flow name="universal-banking-birthday-wishes-notification-api" doc:id="f1452827-76ca-4d4f-9234-79ae25f4b2f3" >
 		<scheduler doc:name="Scheduler" doc:id="7db259d4-8126-4848-aee9-63e882ca1fb2" >
 			<scheduling-strategy >
@@ -105,7 +246,7 @@ WHERE MONTH(DATEOFBIRTH) =
 &lt;/body&gt;
 &lt;/html&gt;</content>
 							</parse-template>
-							<email:send doc:name="email send to the respective users " doc:id="34c8224a-e172-4e75-b062-66c88e552b56" config-ref="Email_SMTP" fromAddress="narsingbeesetti22@gmail.com" subject='#["🎂 Happy Birthday " ++ vars.name ++ " - " ++ vars.bankName]' >
+							<email:send doc:name="email send to the respective users " doc:id="34c8224a-e172-4e75-b062-66c88e552b56" config-ref="Email_SMTP" fromAddress="${smtp.user}" subject='#["🎂 Happy Birthday " ++ vars.name ++ " - " ++ vars.bankName]' >
 								<email:to-addresses >
 									<email:to-address value="#[vars.email]" />
 								</email:to-addresses>
