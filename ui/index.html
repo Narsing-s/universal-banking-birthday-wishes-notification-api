@@ -43,9 +43,9 @@ main{padding:24px 20px 50px}.toolbar{display:flex;justify-content:space-between;
 "use strict";
 (function(){
   const params=new URLSearchParams(window.location.search);
-  const API_BASE=(params.get("apiBase")||"https://birthday-notification-api-tlpwq.5sc6y6-2.usa-e2.cloudhub.io").replace(/\/$/,"");
-  const API_URL=API_BASE+"/api/dashboard";
-  const CUSTOMERS_URL=API_BASE+"/api/customers";
+  const API_BASE=(params.get("apiBase")||"https://birthday-notification-api-tlpwq.5sc6y6-2.usa-e2.cloudhub.io/api").replace(/\/$/,"");
+  const API_URL=API_BASE+"/dashboard";
+  const CUSTOMERS_URL=API_BASE+"/customers";
   const data={metrics:{},customers:[],sentByDay:[],monthlyBirthdays:[]};
 
   function $(id){return document.getElementById(id);}
@@ -72,17 +72,17 @@ main{padding:24px 20px 50px}.toolbar{display:flex;justify-content:space-between;
       return hay.includes(q)&&matchesRange;
     });
     $("rows").innerHTML=rows.length?rows.map(function(c){
-      return "<tr><td><b>"+escapeHtml(c.name)+"</b></td><td>"+escapeHtml(c.bankName||"—")+"</td><td>"+maskAccount(c.account)+"</td><td>"+dateText(c.birthday)+"</td><td>"+(daysLeft(c.birthday)>365?"—":daysLeft(c.birthday))+"</td><td>"+escapeHtml(c.email||"—")+"</td><td><span class="status "+(c.sent?"sent":"pending")+"">"+(c.sent?"Sent":"Pending")+"</span></td><td>"+dateText(c.sentDate)+"</td></tr>";
-    }).join(""):"<tr><td colspan="8">No matching customers</td></tr>";
+      return '<tr><td><b>'+escapeHtml(c.name)+'</b></td><td>'+escapeHtml(c.bankName||"—")+'</td><td>'+maskAccount(c.account)+'</td><td>'+dateText(c.birthday)+'</td><td>'+(daysLeft(c.birthday)>365?"—":daysLeft(c.birthday))+'</td><td>'+escapeHtml(c.email||"—")+'</td><td><span class="status '+(c.sent?"sent":"pending")+'">'+(c.sent?"Sent":"Pending")+'</span></td><td>'+dateText(c.sentDate)+'</td></tr>';
+    }).join(""):'<tr><td colspan="8">No matching customers</td></tr>';
   };
 
   function bars(id,items,labelFn){
     const el=$(id);
-    if(!items.length){el.innerHTML="<span style="color:var(--muted);font-size:12px">No data</span>";return;}
+    if(!items.length){el.innerHTML='<span style="color:var(--muted);font-size:12px">No data</span>';return;}
     const max=Math.max(1,...items.map(function(x){return Number(x.count)||0;}));
     el.innerHTML=items.map(function(x){
       const h=Math.max(10,((Number(x.count)||0)/max)*175);
-      return "<div class="bar" style="height:"+h+"px"><span>"+escapeHtml(labelFn(x))+"</span></div>";
+      return '<div class="bar" style="height:'+h+'px"><span>'+escapeHtml(labelFn(x))+'</span></div>';
     }).join("");
   }
 
@@ -108,7 +108,7 @@ main{padding:24px 20px 50px}.toolbar{display:flex;justify-content:space-between;
 
     const today=data.customers.filter(function(c){return daysLeft(c.birthday)===0;});
     $("todayList").innerHTML=today.length?today.map(function(c){
-      return "<div style="padding:8px 0;border-bottom:1px solid var(--line)"><b>"+escapeHtml(c.name)+"</b> · "+escapeHtml(c.bankName||"—")+"<br><small>"+escapeHtml(c.email||"—")+" · <span class="status "+(c.sent?"sent":"pending")+"">"+(c.sent?"Wish sent":"Pending email")+"</span></small></div>";
+      return '<div style="padding:8px 0;border-bottom:1px solid var(--line)"><b>'+escapeHtml(c.name)+'</b> · '+escapeHtml(c.bankName||"—")+'<br><small>'+escapeHtml(c.email||"—")+' · <span class="status '+(c.sent?"sent":"pending")+'">'+(c.sent?"Wish sent":"Pending email")+'</span></small></div>';
     }).join(""):"<div style="color:var(--muted);font-size:12px">No birthday customer found for today.</div>";
     window.renderTable();
   }
@@ -146,7 +146,9 @@ main{padding:24px 20px 50px}.toolbar{display:flex;justify-content:space-between;
 
     try{
       const customerPayload=await fetchJson(CUSTOMERS_URL);
-      if(Array.isArray(customerPayload.customers))data.customers=customerPayload.customers;
+      if(Array.isArray(customerPayload)) data.customers=customerPayload;
+      else if(Array.isArray(customerPayload.customers)) data.customers=customerPayload.customers;
+      else if(Array.isArray(customerPayload.data)) data.customers=customerPayload.data;
       customersOk=true;
       $("customerStatus").textContent="● Live"; $("customerStatus").style.color="var(--green)";
       $("snowStatus").textContent="● Live"; $("snowStatus").style.color="var(--green)";
