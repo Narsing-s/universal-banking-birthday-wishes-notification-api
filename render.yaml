@@ -1,0 +1,5 @@
+services:
+  - type: web
+    name: birthday-notification-dashboard
+    runtime: static
+    staticPublishPath: ./ui
