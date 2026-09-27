@@ -117,6 +117,51 @@ var customers = []
 		<set-property propertyName="Access-Control-Allow-Headers" value="Content-Type,Authorization" />
 	</flow>
 
+	<flow name="birthday-customers-api" doc:id="birthday-customers-api">
+		<http:listener config-ref="Dashboard_HTTP_Listener" path="/api/customers" allowedMethods="GET" doc:name="Customers API" />
+		<snowflake:select doc:name="Load all active customers" config-ref="Snowflake_Config">
+			<snowflake:sql><![CDATA[
+SELECT
+  FULLNAME,
+  ACCOUNTNUMBER,
+  DATEOFBIRTH,
+  EMAIL,
+  BANKNAME,
+  BIRTHDAY_WISH_SENT,
+  BIRTHDAY_WISH_SENT_DATE,
+  STATUS
+FROM BANK_CUSTOMER_DATA
+WHERE STATUS = 'ACTIVE'
+ORDER BY FULLNAME
+]]></snowflake:sql>
+		</snowflake:select>
+		<ee:transform doc:name="Build live customer list">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+  source: "Snowflake",
+  generatedAt: now(),
+  count: sizeOf(payload),
+  customers: payload map (c) -> {
+    name: c.FULLNAME,
+    account: c.ACCOUNTNUMBER,
+    birthday: c.DATEOFBIRTH,
+    email: c.EMAIL,
+    bankName: c.BANKNAME,
+    status: c.STATUS,
+    sent: c.BIRTHDAY_WISH_SENT default false,
+    sentDate: c.BIRTHDAY_WISH_SENT_DATE
+  }
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<set-property propertyName="Access-Control-Allow-Origin" value="*" />
+		<set-property propertyName="Access-Control-Allow-Methods" value="GET,OPTIONS" />
+		<set-property propertyName="Access-Control-Allow-Headers" value="Content-Type,Authorization" />
+	</flow>
+
 	<flow name="universal-banking-birthday-wishes-notification-api" doc:id="f1452827-76ca-4d4f-9234-79ae25f4b2f3" >
 		<scheduler doc:name="Scheduler" doc:id="7db259d4-8126-4848-aee9-63e882ca1fb2" >
 			<scheduling-strategy >
