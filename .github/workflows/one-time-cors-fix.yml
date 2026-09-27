@@ -5,7 +5,7 @@ on:
   push:
     branches: ["main"]
     paths:
-      - ".github/workflows/one-time-cors-fix.yml"
+      - "*"
 
 permissions:
   contents: write
