@@ -1,0 +1,15 @@
+db:
+ sf:
+  name: "VGVAFTP-IW26436"
+  warehouse: "COMPUTE_WH"
+  database: "MYDATABASE"
+  schema: "PUBLIC"
+  user: "NARSI"
+  password: "Narsing@1234567890"
+  role: "ACCOUNTADMIN"
+  
+email:
+ host: "smtp.gmail.com"
+ port: "587"
+ username: "narsingbeesetti22@gmail.com"
+ password: "bekj eaox judi cxfw"
