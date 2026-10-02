@@ -34,16 +34,37 @@ jobs:
             exit 1
           fi
 
+      - name: Authenticate with Anypoint Platform
+        id: anypoint-auth
+        env:
+          ANYPOINT_CLIENT_ID: ${{ secrets.ANYPOINT_CLIENT_ID }}
+          ANYPOINT_CLIENT_SECRET: ${{ secrets.ANYPOINT_CLIENT_SECRET }}
+        run: |
+          set -euo pipefail
+          response=\$(curl --silent --show-error --fail-with-body \
+            --request POST 'https://anypoint.mulesoft.com/accounts/api/v2/oauth2/token' \
+            --header 'Content-Type: application/x-www-form-urlencoded' \
+            --data-urlencode "client_id=\$ANYPOINT_CLIENT_ID" \
+            --data-urlencode "client_secret=\$ANYPOINT_CLIENT_SECRET" \
+            --data-urlencode 'grant_type=client_credentials')
+          token=\$(printf '%s' "\$response" | jq -r '.access_token // empty')
+          if [ -z "\$token" ]; then
+            echo "::error::Anypoint Connected App authentication returned no access token."
+            exit 1
+          fi
+          echo "::add-mask::\$token"
+          echo "ANYPOINT_AUTH_TOKEN=\$token" >> "\$GITHUB_ENV"
+
       - name: Deploy directly to CloudHub 2.0
         env:
           ANYPOINT_ORG_ID: ${{ secrets.ANYPOINT_ORG_ID }}
+          ANYPOINT_AUTH_TOKEN: ${{ env.ANYPOINT_AUTH_TOKEN }}
         run: >
           mvn --batch-mode
           clean deploy
           -DmuleDeploy
-          -Denv.ANYPOINT_ORG_ID="$ANYPOINT_ORG_ID"
-          -Danypoint.client.id="${{ secrets.ANYPOINT_CLIENT_ID }}"
-          -Danypoint.client.secret="${{ secrets.ANYPOINT_CLIENT_SECRET }}"
+          -Denv.ANYPOINT_ORG_ID="\$ANYPOINT_ORG_ID"
+          -Danypoint.auth.token="\$ANYPOINT_AUTH_TOKEN"
           -Dcloudhub.application.name="${{ secrets.CLOUDHUB_APPLICATION_NAME }}"
           -Dcloudhub.environment="${{ secrets.CLOUDHUB_ENVIRONMENT }}"
           -Dcloudhub.target="${{ secrets.CLOUDHUB_TARGET }}"
