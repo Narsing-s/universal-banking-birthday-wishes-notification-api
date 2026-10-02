@@ -8,7 +8,8 @@ http://www.mulesoft.org/schema/mule/snowflake http://www.mulesoft.org/schema/mul
 http://www.mulesoft.org/schema/mule/email http://www.mulesoft.org/schema/mule/email/current/mule-email.xsd
 http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
 http://www.mulesoft.org/schema/mule/sns http://www.mulesoft.org/schema/mule/sns/current/mule-sns.xsd">
-	<configuration-properties file="config/config.yaml" doc:name="Configuration Properties" doc:id="configuration-properties-config-yaml" />
+	<global-property name="env" value="local" doc:name="Default Configuration Environment" doc:id="default-config-environment" />
+	<configuration-properties file="${env}.yaml" doc:name="Environment Configuration Properties" doc:id="environment-configuration-properties" />
 	<snowflake:snowflake-config name="Snowflake_Config" doc:name="Snowflake Config" doc:id="6a9c414f-fbe9-4ba3-8144-c1cba1091952" >
 		<snowflake:snowflake-connection accountName="${db.sf.name}" warehouse="${db.sf.warehouse}" database="${db.sf.database}" schema="${db.sf.schema}" user="${db.sf.user}" password="${db.sf.password}" role="${db.sf.role}" />
 	</snowflake:snowflake-config>
