@@ -30,6 +30,20 @@
 				<version>${mule.maven.plugin.version}</version>
 				<extensions>true</extensions>
 				<configuration>
+					<!-- CloudHub deployment values are supplied at deploy time. -->
+					<cloudHubDeployment>
+						<uri>https://anypoint.mulesoft.com</uri>
+						<muleVersion>${app.runtime}</muleVersion>
+						<server>anypoint-github-actions</server>
+						<applicationName>${cloudhub.application.name}</applicationName>
+						<environment>${cloudhub.environment}</environment>
+						<region>${cloudhub.region}</region>
+						<workers>${cloudhub.workers}</workers>
+						<workerType>${cloudhub.workerType}</workerType>
+						<properties>
+							<env>cloud</env>
+						</properties>
+					</cloudHubDeployment>
 					<sharedLibraries>
 						<sharedLibrary>
 							<groupId>net.snowflake</groupId>
