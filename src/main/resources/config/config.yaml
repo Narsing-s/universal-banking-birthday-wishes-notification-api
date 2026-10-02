@@ -1,22 +1,22 @@
-# Safe local configuration template
-# Copy this file to: src/main/resources/config/local.yaml
-# Do NOT commit real credentials. This template intentionally contains placeholders only.
+# Safe configuration template — no real credentials
+# Copy to src/main/resources/config/local.yaml for local development.
+# Keep local.yaml out of Git and provide real values through your deployment secret store.
 
 db:
   sf:
-    name: "VGVAFTP-IW26436""
-    warehouse: "COMPUTE_WH"
+    name: "YOUR_SNOWFLAKE_ACCOUNT"
+    warehouse: "YOUR_SNOWFLAKE_WAREHOUSE"
     database: "MYDATABASE"
     schema: "PUBLIC"
-    user: "NARSI"
-    password: "Narsi@123456789"
-    role: "ACCOUNTADMIN"
+    user: "YOUR_SNOWFLAKE_USER"
+    password: "YOUR_SNOWFLAKE_PASSWORD"
+    role: "YOUR_SNOWFLAKE_ROLE"
 
 smtp:
   host: "smtp.gmail.com"
   port: "587"
-  user: "narsingbeesetti22@gmail.com"
-  password: "bekj eaox judi cxfw"
+  user: "YOUR_SMTP_USER"
+  password: "YOUR_SMTP_APP_PASSWORD"
 
 ultramsg:
-  token: "3ua7q1n3u9kpydwq"
+  token: "YOUR_ULTRAMSG_TOKEN"
