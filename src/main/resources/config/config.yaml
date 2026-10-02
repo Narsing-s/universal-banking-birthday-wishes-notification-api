@@ -1,0 +1,22 @@
+# Safe local configuration template
+# Copy this file to: src/main/resources/config/local.yaml
+# Do NOT commit real credentials. This template intentionally contains placeholders only.
+
+db:
+  sf:
+    name: "YOUR_SNOWFLAKE_ACCOUNT"
+    warehouse: "YOUR_SNOWFLAKE_WAREHOUSE"
+    database: "MYDATABASE"
+    schema: "PUBLIC"
+    user: "YOUR_SNOWFLAKE_USER"
+    password: "YOUR_SNOWFLAKE_PASSWORD"
+    role: "YOUR_SNOWFLAKE_ROLE"
+
+smtp:
+  host: "smtp.gmail.com"
+  port: "587"
+  user: "YOUR_SMTP_USER"
+  password: "YOUR_SMTP_APP_PASSWORD"
+
+ultramsg:
+  token: "YOUR_ULTRAMSG_TOKEN"
