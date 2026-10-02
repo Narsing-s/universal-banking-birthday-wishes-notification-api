@@ -45,36 +45,11 @@ jobs:
           test -n "$ORG_ID" && test "$ORG_ID" != "null"
           echo "ANYPOINT_ORG_ID=$ORG_ID" >> "$GITHUB_ENV"
 
-      - name: Configure Maven Exchange authentication
-        env:
-          ANYPOINT_CLIENT_ID: ${{ secrets.ANYPOINT_CLIENT_ID }}
-          ANYPOINT_CLIENT_SECRET: ${{ secrets.ANYPOINT_CLIENT_SECRET }}
-        run: |
-          cat > "$RUNNER_TEMP/settings.xml" <<EOF
-          <?xml version="1.0" encoding="UTF-8"?>
-          <settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"
-                    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-                    xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0 https://maven.apache.org/xsd/settings-1.0.0.xsd">
-            <servers>
-              <server>
-                <id>exchange-repository</id>
-                <username>~~~Client~~~</username>
-                <password>${ANYPOINT_CLIENT_ID}~?~${ANYPOINT_CLIENT_SECRET}</password>
-              </server>
-            </servers>
-          </settings>
-          EOF
-
-      - name: Publish application to Anypoint Exchange
+      - name: Deploy directly to CloudHub 2.0
         run: >
-          mvn --batch-mode -s "$RUNNER_TEMP/settings.xml"
+          mvn --batch-mode
           clean deploy
-          -Daether.connector.basic.parallelPut=false
-
-      - name: Deploy application to CloudHub 2.0
-        run: >
-          mvn --batch-mode -s "$RUNNER_TEMP/settings.xml"
-          mule:deploy
+          -DmuleDeploy
           -Danypoint.client.id="${{ secrets.ANYPOINT_CLIENT_ID }}"
           -Danypoint.client.secret="${{ secrets.ANYPOINT_CLIENT_SECRET }}"
           -Dcloudhub.application.name="${{ secrets.CLOUDHUB_APPLICATION_NAME }}"
