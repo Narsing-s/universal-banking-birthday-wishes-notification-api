@@ -87,11 +87,23 @@ jobs:
           </settings>
           EOF
 
+      - name: Materialize Maven organization coordinates
+        env:
+          ANYPOINT_ORG_ID: ${{ secrets.ANYPOINT_ORG_ID }}
+        run: |
+          perl -0pi -e 's/\$\{env\.ANYPOINT_ORG_ID\}/$ENV{ANYPOINT_ORG_ID}/g' pom.xml
+          if grep -q '\${env.ANYPOINT_ORG_ID}' pom.xml; then
+            echo "::error::Maven organization placeholder was not resolved."
+            exit 1
+          fi
+          echo "Maven organization coordinates prepared."
+
       - name: Publish application to Anypoint Exchange
         env:
           ANYPOINT_ORG_ID: ${{ secrets.ANYPOINT_ORG_ID }}
         run: >
           mvn --batch-mode
+          -e
           clean deploy
           -Daether.connector.basic.parallelPut=false
           -Denv.ANYPOINT_ORG_ID="$ANYPOINT_ORG_ID"
