@@ -34,6 +34,38 @@ jobs:
             exit 1
           fi
 
+      - name: Validate Connected App authentication
+        env:
+          ANYPOINT_CLIENT_ID: ${{ secrets.ANYPOINT_CLIENT_ID }}
+          ANYPOINT_CLIENT_SECRET: ${{ secrets.ANYPOINT_CLIENT_SECRET }}
+        run: |
+          if [ -z "$ANYPOINT_CLIENT_ID" ] || [ -z "$ANYPOINT_CLIENT_SECRET" ]; then
+            echo "::error::Missing ANYPOINT_CLIENT_ID or ANYPOINT_CLIENT_SECRET GitHub Actions secret."
+            exit 1
+          fi
+
+          response=$(curl -sS -w '\n%{http_code}' \
+            -X POST 'https://anypoint.mulesoft.com/accounts/api/v2/oauth2/token' \
+            -H 'Content-Type: application/x-www-form-urlencoded' \
+            --data-urlencode 'grant_type=client_credentials' \
+            --data-urlencode "client_id=$ANYPOINT_CLIENT_ID" \
+            --data-urlencode "client_secret=$ANYPOINT_CLIENT_SECRET")
+
+          status=$(printf '%s\n' "$response" | tail -n1)
+          body=$(printf '%s\n' "$response" | sed '$d')
+
+          if [ "$status" != "200" ]; then
+            echo "::error::Anypoint Connected App authentication failed with HTTP $status."
+            echo "$body" | sed -E 's/"access_token":"[^"]+"/"access_token":"[REDACTED]"/g'
+            exit 1
+          fi
+
+          if ! printf '%s' "$body" | grep -q '"access_token"'; then
+            echo "::error::Anypoint returned HTTP 200 but no access token was present."
+            exit 1
+          fi
+
+          echo "Connected App authentication succeeded."
       - name: Deploy directly to CloudHub 2.0
         env:
           ANYPOINT_ORG_ID: ${{ secrets.ANYPOINT_ORG_ID }}
