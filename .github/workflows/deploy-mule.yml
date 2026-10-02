@@ -98,15 +98,14 @@ jobs:
           fi
           echo "Maven organization coordinates prepared."
 
-      - name: Publish application to Anypoint Exchange
+      - name: Package and publish application to Anypoint Exchange
         env:
-          ANYPOINT_ORG_ID: ${{ secrets.ANYPOINT_ORG_ID }}
-        run: >
-          mvn --batch-mode
-          -e
-          clean deploy
-          -Daether.connector.basic.parallelPut=false
-          -Denv.ANYPOINT_ORG_ID="$ANYPOINT_ORG_ID"
+          OID: ${{ secrets.ANYPOINT_ORG_ID }}
+          CID: ${{ secrets.ANYPOINT_CLIENT_ID }}
+          CSEC: ${{ secrets.ANYPOINT_CLIENT_SECRET }}
+        run: |
+          mvn --batch-mode clean package -Denv.ANYPOINT_ORG_ID="$OID"
+          bash .github/scripts/publish-exchange.sh
 
       - name: Deploy Exchange asset to CloudHub 2.0
         env:
