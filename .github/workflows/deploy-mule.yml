@@ -1,0 +1,47 @@
+name: Deploy Mule application to CloudHub
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17 and Maven credentials
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+          server-id: anypoint-github-actions
+          server-username: ANYPOINT_USERNAME
+          server-password: ANYPOINT_PASSWORD
+
+      - name: Deploy to CloudHub
+        env:
+          ANYPOINT_USERNAME: ${{ secrets.ANYPOINT_USERNAME }}
+          ANYPOINT_PASSWORD: ${{ secrets.ANYPOINT_PASSWORD }}
+        run: >
+          mvn --batch-mode clean deploy -DmuleDeploy
+          -Dcloudhub.application.name="${{ secrets.CLOUDHUB_APPLICATION_NAME }}"
+          -Dcloudhub.environment="${{ secrets.CLOUDHUB_ENVIRONMENT }}"
+          -Dcloudhub.region="${{ secrets.CLOUDHUB_REGION }}"
+          -Dcloudhub.workers="${{ secrets.CLOUDHUB_WORKERS }}"
+          -Dcloudhub.workerType="${{ secrets.CLOUDHUB_WORKER_TYPE }}"
+
+      - name: Deployment summary
+        if: success()
+        run: |
+          echo "CloudHub deployment completed."
+          echo "Application: ${{ secrets.CLOUDHUB_APPLICATION_NAME }}"
+          echo "Environment: ${{ secrets.CLOUDHUB_ENVIRONMENT }}"
