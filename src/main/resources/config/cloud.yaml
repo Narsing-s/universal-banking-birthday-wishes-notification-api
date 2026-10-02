@@ -1,0 +1,22 @@
+# CloudHub configuration template
+# All sensitive values are supplied at runtime through CloudHub environment/application properties.
+# Do not put real credentials in this file.
+
+db:
+  sf:
+    name: "${DB_SF_NAME}"
+    warehouse: "${DB_SF_WAREHOUSE}"
+    database: "${DB_SF_DATABASE}"
+    schema: "${DB_SF_SCHEMA}"
+    user: "${DB_SF_USER}"
+    password: "${DB_SF_PASSWORD}"
+    role: "${DB_SF_ROLE}"
+
+smtp:
+  host: "${SMTP_HOST}"
+  port: "${SMTP_PORT}"
+  user: "${SMTP_USER}"
+  password: "${SMTP_PASSWORD}"
+
+ultramsg:
+  token: "${ULTRAMSG_TOKEN}"
