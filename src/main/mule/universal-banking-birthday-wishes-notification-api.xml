@@ -25,7 +25,15 @@ http://www.mulesoft.org/schema/mule/sns http://www.mulesoft.org/schema/mule/sns/
 		<http:request-connection host="api.ultramsg.com" />
 	</http:request-config>
 <flow name="birthday-dashboard-api" doc:id="birthday-dashboard-api">
-		<http:listener config-ref="Dashboard_HTTP_Listener" path="/api/dashboard" allowedMethods="GET" doc:name="Dashboard API" />
+		<http:listener config-ref="Dashboard_HTTP_Listener" path="/api/dashboard" allowedMethods="GET" doc:name="Dashboard API" >
+		<http:response>
+		    <http:headers><![CDATA[#[{
+		      "Access-Control-Allow-Origin": "*",
+		      "Access-Control-Allow-Methods": "GET,OPTIONS",
+		      "Access-Control-Allow-Headers": "Content-Type,Authorization"
+		    }]]]></http:headers>
+		  </http:response>
+	</http:listener>
 		<set-variable variableName="metrics" doc:name="Load dashboard metrics" value="#[null]" />
 		<snowflake:select doc:name="Load dashboard metrics" config-ref="Snowflake_Config">
 			<snowflake:sql><![CDATA[
@@ -115,13 +123,18 @@ var customers = []
 }]]></ee:set-payload>
 			</ee:message>
 		</ee:transform>
-		<set-property propertyName="Access-Control-Allow-Origin" value="*" />
-		<set-property propertyName="Access-Control-Allow-Methods" value="GET,OPTIONS" />
-		<set-property propertyName="Access-Control-Allow-Headers" value="Content-Type,Authorization" />
 	</flow>
 
 	<flow name="birthday-customers-api" doc:id="birthday-customers-api">
-		<http:listener config-ref="Dashboard_HTTP_Listener" path="/api/customers" allowedMethods="GET" doc:name="Customers API" />
+		<http:listener config-ref="Dashboard_HTTP_Listener" path="/api/customers" allowedMethods="GET" doc:name="Customers API" >
+		<http:response>
+		    <http:headers><![CDATA[#[{
+		      "Access-Control-Allow-Origin": "*",
+		      "Access-Control-Allow-Methods": "GET,OPTIONS",
+		      "Access-Control-Allow-Headers": "Content-Type,Authorization"
+		    }]]]></http:headers>
+		  </http:response>
+	</http:listener>
 		<snowflake:select doc:name="Load all active customers" config-ref="Snowflake_Config">
 			<snowflake:sql><![CDATA[
 SELECT
@@ -160,9 +173,6 @@ output application/json
 }]]></ee:set-payload>
 			</ee:message>
 		</ee:transform>
-		<set-property propertyName="Access-Control-Allow-Origin" value="*" />
-		<set-property propertyName="Access-Control-Allow-Methods" value="GET,OPTIONS" />
-		<set-property propertyName="Access-Control-Allow-Headers" value="Content-Type,Authorization" />
 	</flow>
 
 	<flow name="universal-banking-birthday-wishes-notification-api" doc:id="f1452827-76ca-4d4f-9234-79ae25f4b2f3" >
