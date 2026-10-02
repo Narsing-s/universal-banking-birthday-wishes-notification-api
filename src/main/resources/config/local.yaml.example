@@ -1,0 +1,23 @@
+# LOCAL DEVELOPMENT CONFIGURATION
+# Copy this file to: src/main/resources/config/local.yaml
+# Then replace every placeholder with your real local credential.
+# local.yaml is ignored by Git and must never be committed.
+
+db:
+  sf:
+    name: "YOUR_SNOWFLAKE_ACCOUNT"
+    warehouse: "YOUR_SNOWFLAKE_WAREHOUSE"
+    database: "YOUR_SNOWFLAKE_DATABASE"
+    schema: "PUBLIC"
+    user: "YOUR_SNOWFLAKE_USER"
+    password: "YOUR_SNOWFLAKE_PASSWORD"
+    role: "YOUR_SNOWFLAKE_ROLE"
+
+smtp:
+  host: "smtp.gmail.com"
+  port: "587"
+  user: "YOUR_SMTP_USER"
+  password: "YOUR_SMTP_APP_PASSWORD"
+
+ultramsg:
+  token: "YOUR_ULTRAMSG_TOKEN"
