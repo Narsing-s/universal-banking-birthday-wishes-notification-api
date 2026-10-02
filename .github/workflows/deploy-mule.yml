@@ -66,14 +66,44 @@ jobs:
           fi
 
           echo "Connected App authentication succeeded."
-      - name: Deploy directly to CloudHub 2.0
+      - name: Configure Exchange authentication
+        env:
+          ANYPOINT_CLIENT_ID: ${{ secrets.ANYPOINT_CLIENT_ID }}
+          ANYPOINT_CLIENT_SECRET: ${{ secrets.ANYPOINT_CLIENT_SECRET }}
+        run: |
+          mkdir -p "$HOME/.m2"
+          cat > "$HOME/.m2/settings.xml" <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"
+                    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                    xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0 https://maven.apache.org/xsd/settings-1.0.0.xsd">
+            <servers>
+              <server>
+                <id>exchange-repository</id>
+                <username>~~~Client~~~</username>
+                <password>${ANYPOINT_CLIENT_ID}~?~${ANYPOINT_CLIENT_SECRET}</password>
+              </server>
+            </servers>
+          </settings>
+          EOF
+
+      - name: Publish application to Anypoint Exchange
+        env:
+          ANYPOINT_ORG_ID: ${{ secrets.ANYPOINT_ORG_ID }}
+        run: >
+          mvn --batch-mode
+          clean deploy
+          -Daether.connector.basic.parallelPut=false
+          -Denv.ANYPOINT_ORG_ID="$ANYPOINT_ORG_ID"
+
+      - name: Deploy Exchange asset to CloudHub 2.0
         env:
           ANYPOINT_ORG_ID: ${{ secrets.ANYPOINT_ORG_ID }}
           ANYPOINT_CLIENT_ID: ${{ secrets.ANYPOINT_CLIENT_ID }}
           ANYPOINT_CLIENT_SECRET: ${{ secrets.ANYPOINT_CLIENT_SECRET }}
         run: >
           mvn --batch-mode
-          clean deploy
+          mule:deploy
           -DmuleDeploy
           -Denv.ANYPOINT_ORG_ID="$ANYPOINT_ORG_ID"
           -Danypoint.client.id="$ANYPOINT_CLIENT_ID"
@@ -83,7 +113,6 @@ jobs:
           -Dcloudhub.target="${{ secrets.CLOUDHUB_TARGET }}"
           -Dcloudhub.replicas="${{ secrets.CLOUDHUB_REPLICAS }}"
           -Dcloudhub.vcores="${{ secrets.CLOUDHUB_VCORES }}"
-
       - name: Deployment summary
         if: success()
         run: |
