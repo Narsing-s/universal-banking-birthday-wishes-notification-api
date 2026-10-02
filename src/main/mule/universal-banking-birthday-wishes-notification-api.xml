@@ -1,17 +1,18 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<mule xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:email="http://www.mulesoft.org/schema/mule/email"
-	xmlns:snowflake="http://www.mulesoft.org/schema/mule/snowflake"
-	xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+<mule xmlns:sns="http://www.mulesoft.org/schema/mule/sns" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:email="http://www.mulesoft.org/schema/mule/email"
+	xmlns:snowflake="http://www.mulesoft.org/schema/mule/snowflake" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
 http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
 http://www.mulesoft.org/schema/mule/snowflake http://www.mulesoft.org/schema/mule/snowflake/current/mule-snowflake.xsd
 http://www.mulesoft.org/schema/mule/email http://www.mulesoft.org/schema/mule/email/current/mule-email.xsd
-http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/sns http://www.mulesoft.org/schema/mule/sns/current/mule-sns.xsd">
 	<snowflake:snowflake-config name="Snowflake_Config" doc:name="Snowflake Config" doc:id="6a9c414f-fbe9-4ba3-8144-c1cba1091952" >
-		<snowflake:snowflake-connection accountName="TICPWBD-IC44792" warehouse="COMPUTE_WH" database="MYDATABASE" schema="public" user="MYDB" password="Mydb@123456789" role="ACCOUNTADMIN" />
+		<snowflake:snowflake-connection accountName="${db.sf.name}" warehouse="${db.sf.warehouse}" database="${db.sf.database}" schema="${db.sf.schema}" user="${db.sf.user}" password="${db.sf.password}" role="${db.sf.role}" />
 	</snowflake:snowflake-config>
 	<email:smtp-config name="Email_SMTP" doc:name="Email SMTP" doc:id="b991bfc6-6afd-4363-89ae-ea5b99fa5862" >
-		<email:smtp-connection host="smtp.gmail.com" port="587" user="narsingbeesetti06@gmail.com" password="ajfq nryi lwjh zhev" >
+		<email:smtp-connection host="${smtp.host}" port="${smtp.port}" user="${smtp.user}" password="${smtp.password}" >
 			<email:properties >
 				<email:property key="mail.smtp.starttls.enable" value="true" />
 			</email:properties>
@@ -20,17 +21,11 @@ http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/
 	<http:listener-config name="Dashboard_HTTP_Listener" doc:name="Dashboard HTTP Listener" doc:id="dashboard-http-listener">
 		<http:listener-connection host="0.0.0.0" port="8081" />
 	</http:listener-config>
-
-	<flow name="birthday-dashboard-api" doc:id="birthday-dashboard-api">
-		<http:listener config-ref="Dashboard_HTTP_Listener" path="/api/dashboard" allowedMethods="GET" doc:name="Dashboard API" >
-		<http:response>
-		    <http:headers><![CDATA[#[{
-		      "Access-Control-Allow-Origin": "*",
-		      "Access-Control-Allow-Methods": "GET,OPTIONS",
-		      "Access-Control-Allow-Headers": "Content-Type,Authorization"
-		    }]]]></http:headers>
-		  </http:response>
-	</http:listener>
+	<http:request-config name="HTTP_Request_configuration" doc:name="HTTP Request configuration" doc:id="134c1f4b-c2c0-4df9-89d9-ed02f7561c82" >
+		<http:request-connection host="api.ultramsg.com" />
+	</http:request-config>
+<flow name="birthday-dashboard-api" doc:id="birthday-dashboard-api">
+		<http:listener config-ref="Dashboard_HTTP_Listener" path="/api/dashboard" allowedMethods="GET" doc:name="Dashboard API" />
 		<set-variable variableName="metrics" doc:name="Load dashboard metrics" value="#[null]" />
 		<snowflake:select doc:name="Load dashboard metrics" config-ref="Snowflake_Config">
 			<snowflake:sql><![CDATA[
@@ -120,18 +115,13 @@ var customers = []
 }]]></ee:set-payload>
 			</ee:message>
 		</ee:transform>
+		<set-property propertyName="Access-Control-Allow-Origin" value="*" />
+		<set-property propertyName="Access-Control-Allow-Methods" value="GET,OPTIONS" />
+		<set-property propertyName="Access-Control-Allow-Headers" value="Content-Type,Authorization" />
 	</flow>
 
 	<flow name="birthday-customers-api" doc:id="birthday-customers-api">
-		<http:listener config-ref="Dashboard_HTTP_Listener" path="/api/customers" allowedMethods="GET" doc:name="Customers API" >
-		<http:response>
-		    <http:headers><![CDATA[#[{
-		      "Access-Control-Allow-Origin": "*",
-		      "Access-Control-Allow-Methods": "GET,OPTIONS",
-		      "Access-Control-Allow-Headers": "Content-Type,Authorization"
-		    }]]]></http:headers>
-		  </http:response>
-	</http:listener>
+		<http:listener config-ref="Dashboard_HTTP_Listener" path="/api/customers" allowedMethods="GET" doc:name="Customers API" />
 		<snowflake:select doc:name="Load all active customers" config-ref="Snowflake_Config">
 			<snowflake:sql><![CDATA[
 SELECT
@@ -170,6 +160,9 @@ output application/json
 }]]></ee:set-payload>
 			</ee:message>
 		</ee:transform>
+		<set-property propertyName="Access-Control-Allow-Origin" value="*" />
+		<set-property propertyName="Access-Control-Allow-Methods" value="GET,OPTIONS" />
+		<set-property propertyName="Access-Control-Allow-Headers" value="Content-Type,Authorization" />
 	</flow>
 
 	<flow name="universal-banking-birthday-wishes-notification-api" doc:id="f1452827-76ca-4d4f-9234-79ae25f4b2f3" >
@@ -179,16 +172,43 @@ output application/json
 			</scheduling-strategy>
 		</scheduler>
 		<logger level="INFO" doc:name="Start universal banking Birthday wishes flow" doc:id="c0e6d6d6-719f-4b9c-a1df-9808610ddac5" message="===========Start universal banking Birthday wishes flow==========="/>
-		<snowflake:select doc:name="retrive the customers data who having birthday today" doc:id="fc1357c1-d080-4571-b90f-49773d6c3d30" config-ref="Snowflake_Config">
-			<snowflake:sql ><![CDATA[SELECT *
+		<snowflake:select doc:name="Select" doc:id="58c3c0db-403d-4720-8175-bfb94a147914" config-ref="Snowflake_Config">
+			<snowflake:sql ><![CDATA[SELECT
+    CUSTOMER_ID,
+    FULLNAME,
+    DATEOFBIRTH,
+    MOBILENUMBER,
+    BANKNAME,
+    EMAIL
 FROM BANK_CUSTOMER_DATA
-WHERE MONTH(DATEOFBIRTH) = MONTH(CURRENT_DATE())
-  AND DAY(DATEOFBIRTH) = DAY(CURRENT_DATE())
+WHERE MONTH(DATEOFBIRTH) =
+      MONTH(
+          CONVERT_TIMEZONE(
+              'UTC',
+              'Asia/Kolkata',
+              CURRENT_TIMESTAMP()
+          )::DATE
+      )
+  AND DAY(DATEOFBIRTH) =
+      DAY(
+          CONVERT_TIMEZONE(
+              'UTC',
+              'Asia/Kolkata',
+              CURRENT_TIMESTAMP()
+          )::DATE
+      )
   AND STATUS = 'ACTIVE'
   AND (
-        BIRTHDAY_WISH_SENT_DATE IS NULL
-        OR YEAR(BIRTHDAY_WISH_SENT_DATE) < YEAR(CURRENT_DATE())
-      );]]></snowflake:sql>
+      BIRTHDAY_WISH_SENT_DATE IS NULL
+      OR YEAR(BIRTHDAY_WISH_SENT_DATE) <
+         YEAR(
+             CONVERT_TIMEZONE(
+                 'UTC',
+                 'Asia/Kolkata',
+                 CURRENT_TIMESTAMP()
+             )::DATE
+         )
+  );]]></snowflake:sql>
 		</snowflake:select>
 		<logger level="INFO" doc:name="After database transform payload from array of object to object" doc:id="9d41fae1-ed07-4a61-a238-9838f2c1ad45" message='#["Payload = " ++ write(payload,"application/json")]'/>
 		<logger level="INFO" doc:name="logging payload type" doc:id="be75df16-5f13-49d8-9aaa-eba68c70d4f9" message='#["Payload Type = " ++ (typeOf(payload) as String)]'/>
@@ -198,9 +218,11 @@ WHERE MONTH(DATEOFBIRTH) = MONTH(CURRENT_DATE())
 			<set-variable value="#[payload.FULLNAME]" doc:name="name" doc:id="8814f5a7-ca4e-4d26-9892-fdef0c532899" variableName="name" />
 			<set-variable value="#[payload.EMAIL]" doc:name="email" doc:id="c8169dd9-ce77-42fa-a61c-8811d931f863" variableName="email" />
 			<set-variable value="#[payload.BANKNAME]" doc:name="bankName" doc:id="4a27ff90-a960-44b9-9904-49dd6497833b" variableName="bankName"/>
-					<set-variable value="#[%dw 2.0&#10;output text/plain&#10;---&#10;&quot;&lt;html&gt;&#10;&lt;body style='font-family:Arial,sans-serif;background:#f7f7f7;padding:20px;'&gt;&#10;&#10;&lt;div style='background:white;padding:25px;border-radius:8px;'&gt;&#10;&#10;&lt;h2 style='color:#1E88E5'&gt;&#10;&#127881; Happy Birthday, &quot; ++ ((vars.rootMessage.payload.FULLNAME[0] default &quot;Customer&quot;) as String) ++ &quot;!&#10;&lt;/h2&gt;&#10;&#10;&lt;p&gt;Dear &lt;b&gt;&quot; ++ ((vars.customerName default &quot;Customer&quot;) as String) ++ &quot;&lt;/b&gt;,&lt;/p&gt;&#10;&#10;&lt;p&gt;&#10;Warm Birthday Wishes from&#10;&lt;b&gt;&quot; ++ ((vars.bankName default &quot;Our Bank&quot;) as String) ++ &quot;&lt;/b&gt;.&#10;&lt;/p&gt;&#10;&#10;&lt;p&gt;&#10;May this special day bring happiness, success, good health, and prosperity.&#10;Thank you for choosing &quot; ++ ((vars.bankName default &quot;Our Bank&quot;) as String) ++ &quot; as your trusted banking partner.&#10;&lt;/p&gt;&#10;&#10;&lt;p&gt;&#10;We truly value your trust and look forward to serving you for many more years.&#10;&lt;/p&gt;&#10;&#10;&lt;p&gt;&#10;Have a wonderful birthday! &#127874; &#127881;&#10;&lt;/p&gt;&#10;&#10;&lt;br/&gt;&#10;&#10;&lt;p&gt;&#10;Thanks &amp; Regards,&lt;br/&gt;&#10;&lt;b&gt;Customer Relationship Team&lt;/b&gt;&lt;br/&gt;&#10;&quot; ++ ((vars.bankName default &quot;Our Bank&quot;) as String) ++ &quot;&#10;&lt;/p&gt;&#10;&#10;&lt;hr/&gt;&#10;&#10;&lt;p style='font-size:12px;color:gray'&gt;&#10;This is an automated greeting from &quot; ++ ((vars.bankName default &quot;Our Bank&quot;) as String) ++ &quot;.&#10;&lt;/p&gt;&#10;&#10;&lt;/div&gt;&#10;&#10;&lt;/body&gt;&#10;&lt;/html&gt;&quot;]" doc:name="emailbody" doc:id="5e6ef619-e158-48cd-a25f-71943f44c93e" variableName="emailbody" />
-			<parse-template doc:name="email templete " doc:id="ccde173c-a7ce-476d-8ea5-d9dbf4e97d0a">
-				<content>&lt;html&gt;
+					<scatter-gather doc:name="Scatter-Gather" doc:id="a026fe9c-f09a-4e7d-9b58-32aedea79edf" >
+						<route >
+							<set-variable value="#[%dw 2.0&#10;output text/plain&#10;---&#10;&quot;&lt;html&gt;&#10;&lt;body style='font-family:Arial,sans-serif;background:#f7f7f7;padding:20px;'&gt;&#10;&#10;&lt;div style='background:white;padding:25px;border-radius:8px;'&gt;&#10;&#10;&lt;h2 style='color:#1E88E5'&gt;&#10;&#127881; Happy Birthday, &quot; ++ ((vars.rootMessage.payload.FULLNAME[0] default &quot;Customer&quot;) as String) ++ &quot;!&#10;&lt;/h2&gt;&#10;&#10;&lt;p&gt;Dear &lt;b&gt;&quot; ++ ((vars.customerName default &quot;Customer&quot;) as String) ++ &quot;&lt;/b&gt;,&lt;/p&gt;&#10;&#10;&lt;p&gt;&#10;Warm Birthday Wishes from&#10;&lt;b&gt;&quot; ++ ((vars.bankName default &quot;Our Bank&quot;) as String) ++ &quot;&lt;/b&gt;.&#10;&lt;/p&gt;&#10;&#10;&lt;p&gt;&#10;May this special day bring happiness, success, good health, and prosperity.&#10;Thank you for choosing &quot; ++ ((vars.bankName default &quot;Our Bank&quot;) as String) ++ &quot; as your trusted banking partner.&#10;&lt;/p&gt;&#10;&#10;&lt;p&gt;&#10;We truly value your trust and look forward to serving you for many more years.&#10;&lt;/p&gt;&#10;&#10;&lt;p&gt;&#10;Have a wonderful birthday! &#127874; &#127881;&#10;&lt;/p&gt;&#10;&#10;&lt;br/&gt;&#10;&#10;&lt;p&gt;&#10;Thanks &amp; Regards,&lt;br/&gt;&#10;&lt;b&gt;Customer Relationship Team&lt;/b&gt;&lt;br/&gt;&#10;&quot; ++ ((vars.bankName default &quot;Our Bank&quot;) as String) ++ &quot;&#10;&lt;/p&gt;&#10;&#10;&lt;hr/&gt;&#10;&#10;&lt;p style='font-size:12px;color:gray'&gt;&#10;This is an automated greeting from &quot; ++ ((vars.bankName default &quot;Our Bank&quot;) as String) ++ &quot;.&#10;&lt;/p&gt;&#10;&#10;&lt;/div&gt;&#10;&#10;&lt;/body&gt;&#10;&lt;/html&gt;&quot;]" doc:name="emailbody" doc:id="5e6ef619-e158-48cd-a25f-71943f44c93e" variableName="emailbody" />
+							<parse-template doc:name="email templete " doc:id="68fa2f9d-422d-4b8a-8f16-82baf41c354b" >
+								<content >&lt;html&gt;
 &lt;head&gt;
     &lt;style&gt;
         body {
@@ -226,48 +248,62 @@ WHERE MONTH(DATEOFBIRTH) = MONTH(CURRENT_DATE())
     
 &lt;/body&gt;
 &lt;/html&gt;</content>
-			</parse-template>
-			<email:send doc:name="email send to the respective users " doc:id="585d3f38-c307-4c4a-9438-c3890fa2e92d" config-ref="Email_SMTP" fromAddress="narsingbeesetti06@gmail.com" subject='#["🎂 Happy Birthday " ++ vars.name ++ " - " ++ vars.bankName]'>
-				<email:to-addresses>
-					<email:to-address value="#[vars.email]" />
-				</email:to-addresses>
-				<email:body contentType="text/html" encoding="UTF-8" />
-			</email:send>
-			<snowflake:update doc:name="after sent an email to the user updating time stamps in database" doc:id="baa2bd12-54ae-4195-82da-4c65721f2e0e" config-ref="Snowflake_Config">
-						<snowflake:sql ><![CDATA[UPDATE BANK_CUSTOMER_DATA
-SET
-    BIRTHDAY_WISH_SENT = TRUE,
-    BIRTHDAY_WISH_SENT_DATE = CURRENT_TIMESTAMP()
-WHERE ACCOUNTNUMBER = :accountNumber;]]></snowflake:sql>
-						<snowflake:input-parameters ><![CDATA[#[{
-	"accountNumber": vars.rootMessage.payload.ACCOUNTNUMBER[0]
-}]]]></snowflake:input-parameters>
-					</snowflake:update>
-					<ee:transform doc:name="output" doc:id="379ec460-af2a-42be-a0d1-5b8db1c8b37f">
-				<ee:message>
-					<ee:set-payload><![CDATA[%dw 2.0
-output application/json
+							</parse-template>
+							<email:send doc:name="email send to the respective users " doc:id="34c8224a-e172-4e75-b062-66c88e552b56" config-ref="Email_SMTP" fromAddress="${smtp.user}" subject='#["🎂 Happy Birthday " ++ vars.name ++ " - " ++ vars.bankName]' >
+								<email:to-addresses >
+									<email:to-address value="#[vars.email]" />
+								</email:to-addresses>
+								<email:body contentType="text/html" encoding="UTF-8" />
+							</email:send>
+							<snowflake:update doc:name="after sent an email to the user updating time stamps in database" doc:id="cfd4680d-ee94-4e83-b36f-729ba812692d" config-ref="Snowflake_Config" >
+								<snowflake:sql ><![CDATA[UPDATE BANK_CUSTOMER_DATA
+        SET
+            BIRTHDAY_WISH_SENT = TRUE,
+            BIRTHDAY_WISH_SENT_DATE = CURRENT_TIMESTAMP()
+        WHERE CUSTOMER_ID = :customerId]]></snowflake:sql>
+								<snowflake:input-parameters ><![CDATA[#[{
+            customerId: vars.rootMessage.payload.CUSTOMER_ID[0]
+        }]]]></snowflake:input-parameters>
+							</snowflake:update>
+							<logger level="INFO" doc:name="End Flow" doc:id="0acd73b1-2320-4a93-bea7-1a1671ec87d2" message="=================Email sent to the user successfully=============" />
+						</route>
+						<route >
+							<set-variable value='#[payload.MOBILENUMBER default ""]' doc:name="mobileNumber" doc:id="4917a153-d0ae-48e9-a35f-3345a106772d" variableName="mobileNumber"/>
+							<logger level="INFO" doc:name="Before Ultramsg service" doc:id="ce6c7119-df39-4f39-883b-cdc5e16ec99d" message="===========Before Ultramsg service===========" />
+							<http:request method="POST" doc:name="Request" doc:id="b18d0e81-68f4-4839-8207-36cbfaeaefdf" config-ref="HTTP_Request_configuration" path="/instance184029/messages/chat">
+								<http:body><![CDATA[#[%dw 2.0
+output application/x-www-form-urlencoded
 ---
 {
-	"status": "The user transaction list has been share to the user.",
-	accountdetailes: {
-		data: {
-			accountNumber: vars.db.ACCOUNTNUMBER,
-			CustName: vars.db.FULLNAME,
-			CustEmail: vars.db.EMAIL,
-			CurrentBalance: vars.db.BALANCE,
-			BankName: vars.db.BANKNAME
-		}
-	}
-}]]></ee:set-payload>
-				</ee:message>
-			</ee:transform>
-			<logger level="INFO" doc:name="End Flow" doc:id="0acd73b1-2320-4a93-bea7-1a1671ec87d2" message="=================Email sent to the user successfully=============" />
+    token: vars.token,
+    to: vars.mobileNumber,
+    body:
+        "🎉 *Happy Birthday, " ++ (vars.name default "Customer") ++ "!* 🎂\n\n" ++
+        "Dear *" ++ (vars.name default "Customer") ++ "*,\n\n" ++
+        "Warm Birthday Wishes from *" ++ (vars.bankName default "Our Bank") ++ "*.\n\n" ++
+        "May this special day bring happiness, good health, success, and prosperity.\n\n" ++
+        "Thank you for choosing *" ++ (vars.bankName default "Our Bank") ++ "* as your trusted banking partner.\n\n" ++
+        "We truly value your trust and look forward to serving you for many more years.\n\n" ++
+        "🎂 Have a wonderful birthday! 🎉\n\n" ++
+        "Regards,\n" ++
+        "*Customer Relationship Team*\n" ++
+        (vars.bankName default "Our Bank")
+}]]]></http:body>
+										<http:query-params><![CDATA[#[output application/json
+---
+{
+	token : "s4gyjlv0audzesjd"
+}]]]></http:query-params>
+							</http:request>
+							<logger level="INFO" doc:name="UltraMsg Response" doc:id="44556e12-6174-4ea9-8539-edf76ea0aadf" message="#[write(payload,'application/json')]" />
+						</route>
+					</scatter-gather>
 		</foreach>
 			</when>
 			<otherwise>
 				<logger level="INFO" doc:name="No customer birthdays today" doc:id="1a638126-3ecc-4423-8090-2ea123bfb8f8" message="===========No customer birthdays today=========" />
 			</otherwise>
 		</choice>
+		<logger level="INFO" doc:name="Logger" doc:id="4585ee03-fa7f-4058-a4a9-95cc21c09b52" />
 	</flow>
 </mule>
