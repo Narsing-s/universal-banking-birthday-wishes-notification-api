@@ -24,7 +24,7 @@ jobs:
           java-version: '17'
           cache: maven
 
-      - name: Configure Anypoint organization
+      - name: Validate Anypoint organization secret
         env:
           ANYPOINT_ORG_ID: ${{ secrets.ANYPOINT_ORG_ID }}
         run: |
@@ -34,13 +34,14 @@ jobs:
             exit 1
           fi
 
-          echo "ANYPOINT_ORG_ID=$ANYPOINT_ORG_ID" >> "$GITHUB_ENV"
-
       - name: Deploy directly to CloudHub 2.0
+        env:
+          ANYPOINT_ORG_ID: ${{ secrets.ANYPOINT_ORG_ID }}
         run: >
           mvn --batch-mode
           clean deploy
           -DmuleDeploy
+          -Denv.ANYPOINT_ORG_ID="$ANYPOINT_ORG_ID"
           -Danypoint.client.id="${{ secrets.ANYPOINT_CLIENT_ID }}"
           -Danypoint.client.secret="${{ secrets.ANYPOINT_CLIENT_SECRET }}"
           -Dcloudhub.application.name="${{ secrets.CLOUDHUB_APPLICATION_NAME }}"
