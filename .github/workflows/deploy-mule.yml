@@ -104,8 +104,7 @@ jobs:
           CID: ${{ secrets.ANYPOINT_CLIENT_ID }}
           CSEC: ${{ secrets.ANYPOINT_CLIENT_SECRET }}
         run: |
-          mvn --batch-mode clean package -Denv.ANYPOINT_ORG_ID="$OID"
-          bash .github/scripts/publish-exchange.sh
+          mvn --batch-mode clean deploy -Denv.ANYPOINT_ORG_ID="$OID" -Daether.connector.basic.parallelPut=false
 
       - name: Deploy Exchange asset to CloudHub 2.0
         env:
