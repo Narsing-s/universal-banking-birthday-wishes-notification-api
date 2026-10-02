@@ -233,6 +233,77 @@ The application handles:
 
 ---
 
+## Configuration
+
+The application supports two configuration modes without storing credentials in GitHub.
+
+### Local development — local.yaml
+
+The Mule application defaults to the local environment, so it loads:
+
+```text
+src/main/resources/config/local.yaml
+```
+
+Create it from the tracked template:
+
+```text
+src/main/resources/config/local.yaml.example
+```
+
+Then replace the placeholders with your real Snowflake, SMTP, and UltraMsg values. The file is ignored by Git and must never be committed.
+
+### CloudHub — environment/application properties
+
+When deployed to CloudHub, set the Mule environment property to:
+
+```text
+env=cloud
+```
+
+The application then loads:
+
+```text
+src/main/resources/config/cloud.yaml
+```
+
+That file contains no credentials. It resolves its values from runtime environment/application properties:
+
+| Runtime property | Used for |
+|---|---|
+| DB_SF_NAME | Snowflake account |
+| DB_SF_WAREHOUSE | Snowflake warehouse |
+| DB_SF_DATABASE | Snowflake database |
+| DB_SF_SCHEMA | Snowflake schema |
+| DB_SF_USER | Snowflake username |
+| DB_SF_PASSWORD | Snowflake password |
+| DB_SF_ROLE | Snowflake role |
+| SMTP_HOST | SMTP server |
+| SMTP_PORT | SMTP port |
+| SMTP_USER | SMTP username/from address |
+| SMTP_PASSWORD | SMTP password/app password |
+| ULTRAMSG_TOKEN | UltraMsg token |
+
+Mule environment/system/deployment properties have higher precedence than bundled application properties, so CloudHub can supply these values at deployment/runtime without putting secrets in the repository.
+
+### Configuration selection
+
+The Mule configuration uses:
+
+```xml
+<global-property name="env" value="local" />
+<configuration-properties file="${env}.yaml" />
+```
+
+Therefore:
+
+- Local run → default env=local → local.yaml
+- CloudHub → set env=cloud → cloud.yaml → runtime environment/application properties
+
+config.yaml remains a generic safe reference template; it is not the environment file selected at runtime.
+
+---
+
 ## Deployment
 
 ### Build
