@@ -4,19 +4,19 @@
 
 db:
   sf:
-    name: "YOUR_SNOWFLAKE_ACCOUNT"
-    warehouse: "YOUR_SNOWFLAKE_WAREHOUSE"
+    name: "VGVAFTP-IW26436""
+    warehouse: "COMPUTE_WH"
     database: "MYDATABASE"
     schema: "PUBLIC"
-    user: "YOUR_SNOWFLAKE_USER"
-    password: "YOUR_SNOWFLAKE_PASSWORD"
-    role: "YOUR_SNOWFLAKE_ROLE"
+    user: "NARSI"
+    password: "Narsi@123456789"
+    role: "ACCOUNTADMIN"
 
 smtp:
   host: "smtp.gmail.com"
   port: "587"
-  user: "YOUR_SMTP_USER"
-  password: "YOUR_SMTP_APP_PASSWORD"
+  user: "narsingbeesetti22@gmail.com"
+  password: "bekj eaox judi cxfw"
 
 ultramsg:
-  token: "YOUR_ULTRAMSG_TOKEN"
+  token: "3ua7q1n3u9kpydwq"
