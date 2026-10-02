@@ -45,3 +45,8 @@ target/
 .mule/
 .DS_Store
 velocity.log
+# Local secrets / environment configuration
+src/main/resources/config/local.yaml
+src/main/resources/config/*.yml
+src/main/resources/config/*.yaml
+*.backup
