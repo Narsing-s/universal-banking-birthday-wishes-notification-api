@@ -350,3 +350,48 @@ mvn clean deploy
 ## License
 
 This project is intended for educational, demonstration, and enterprise banking automation purposes. It showcases MuleSoft scheduler-based email automation integrated with Snowflake and SMTP services.
+
+## GitHub → Anypoint CloudHub Deployment
+
+This repository includes a GitHub Actions deployment workflow at `.github/workflows/deploy-mule.yml`.
+
+The workflow builds the Mule application with Java 17 and runs:
+
+`mvn clean deploy -DmuleDeploy`
+
+The Mule Maven Plugin is configured for CloudHub deployment and reads the deployment target from GitHub Actions variables/secrets. No Anypoint credentials are stored in the repository.
+
+### Required GitHub Actions secrets
+
+Add these repository secrets in **GitHub → Settings → Secrets and variables → Actions**:
+
+- `ANYPOINT_USERNAME`
+- `ANYPOINT_PASSWORD`
+- `CLOUDHUB_APPLICATION_NAME`
+- `CLOUDHUB_ENVIRONMENT`
+- `CLOUDHUB_REGION`
+- `CLOUDHUB_WORKERS`
+- `CLOUDHUB_WORKER_TYPE`
+
+For a typical CloudHub 1.0 deployment, `CLOUDHUB_WORKERS` can be `1` and `CLOUDHUB_WORKER_TYPE` can be `MICRO`, subject to the worker sizes available in your Anypoint organization.
+
+### CloudHub application properties
+
+The deployed Mule application is forced to use the `cloud` configuration environment. Keep the actual Snowflake, SMTP and UltraMsg values in Anypoint Runtime Manager application properties rather than GitHub.
+
+The application expects:
+
+- `DB_SF_NAME`
+- `DB_SF_WAREHOUSE`
+- `DB_SF_DATABASE`
+- `DB_SF_SCHEMA`
+- `DB_SF_USER`
+- `DB_SF_PASSWORD`
+- `DB_SF_ROLE`
+- `SMTP_HOST`
+- `SMTP_PORT`
+- `SMTP_USER`
+- `SMTP_PASSWORD`
+- `ULTRAMSG_TOKEN`
+
+This keeps deployment credentials and runtime integration credentials outside source control.
