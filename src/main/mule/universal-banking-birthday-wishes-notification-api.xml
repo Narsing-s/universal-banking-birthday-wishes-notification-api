@@ -292,7 +292,7 @@ output application/x-www-form-urlencoded
 										<http:query-params><![CDATA[#[output application/json
 ---
 {
-	token : "s4gyjlv0audzesjd"
+	token : "${ultramsg.token}"
 }]]]></http:query-params>
 							</http:request>
 							<logger level="INFO" doc:name="UltraMsg Response" doc:id="44556e12-6174-4ea9-8539-edf76ea0aadf" message="#[write(payload,'application/json')]" />
