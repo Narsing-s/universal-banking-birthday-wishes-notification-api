@@ -9,14 +9,10 @@ http://www.mulesoft.org/schema/mule/email http://www.mulesoft.org/schema/mule/em
 http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
 http://www.mulesoft.org/schema/mule/sns http://www.mulesoft.org/schema/mule/sns/current/mule-sns.xsd">
 	<snowflake:snowflake-config name="Snowflake_Config" doc:name="Snowflake Config" doc:id="6a9c414f-fbe9-4ba3-8144-c1cba1091952" >
-<<<<<<< HEAD
-		<snowflake:snowflake-connection accountName="${snowflake.account}" warehouse="COMPUTE_WH" database="MYDATABASE" schema="PUBLIC" user="${smtp.user}" password="${smtp.password}" role="ACCOUNTADMIN" />
-=======
 		<snowflake:snowflake-connection accountName="${db.sf.name}" warehouse="${db.sf.warehouse}" database="${db.sf.database}" schema="${db.sf.schema}" user="${db.sf.user}" password="${db.sf.password}" role="${db.sf.role}" />
->>>>>>> ac7d9dc (Move DB configuration values to local YAML)
 	</snowflake:snowflake-config>
 	<email:smtp-config name="Email_SMTP" doc:name="Email SMTP" doc:id="b991bfc6-6afd-4363-89ae-ea5b99fa5862" >
-		<email:smtp-connection host="${email.host}" port="${email.port}" user="${email.username}" password="${email.password}" >
+		<email:smtp-connection host="smtp.gmail.com" port="587" user="narsingbeesetti22@gmail.com" password="emhj qbsf nscl nmud" >
 			<email:properties >
 				<email:property key="mail.smtp.starttls.enable" value="true" />
 			</email:properties>
@@ -25,7 +21,7 @@ http://www.mulesoft.org/schema/mule/sns http://www.mulesoft.org/schema/mule/sns/
 	<http:request-config name="HTTP_Request_configuration" doc:name="HTTP Request configuration" doc:id="134c1f4b-c2c0-4df9-89d9-ed02f7561c82" >
 		<http:request-connection host="api.ultramsg.com" />
 	</http:request-config>
-<<<<<<< HEAD
+        <configuration-properties doc:name="Configuration properties" doc:id="cf9dad88-85a2-4cce-8a1f-91a9d8c2fe63" file="configlocal.yaml" />
 	<flow name="birthday-dashboard-api" doc:id="birthday-dashboard-api">
 		<http:listener config-ref="Dashboard_HTTP_Listener" path="/api/dashboard" allowedMethods="GET" doc:name="Dashboard API" />
 		<set-variable variableName="metrics" doc:name="Load dashboard metrics" value="#[null]" />
@@ -167,9 +163,6 @@ output application/json
 		<set-property propertyName="Access-Control-Allow-Headers" value="Content-Type,Authorization" />
 	</flow>
 
-=======
-	<configuration-properties doc:name="Configuration properties" doc:id="cf9dad88-85a2-4cce-8a1f-91a9d8c2fe63" file="config\local.yaml" />
->>>>>>> ac7d9dc (Move DB configuration values to local YAML)
 	<flow name="universal-banking-birthday-wishes-notification-api" doc:id="f1452827-76ca-4d4f-9234-79ae25f4b2f3" >
 		<scheduler doc:name="Scheduler" doc:id="7db259d4-8126-4848-aee9-63e882ca1fb2" >
 			<scheduling-strategy >
@@ -275,7 +268,7 @@ WHERE MONTH(DATEOFBIRTH) =
 						<route >
 							<set-variable value='#[payload.MOBILENUMBER default ""]' doc:name="mobileNumber" doc:id="4917a153-d0ae-48e9-a35f-3345a106772d" variableName="mobileNumber"/>
 							<logger level="INFO" doc:name="Before Ultramsg service" doc:id="ce6c7119-df39-4f39-883b-cdc5e16ec99d" message="===========Before Ultramsg service===========" />
-							<http:request method="POST" doc:name="Request" doc:id="b18d0e81-68f4-4839-8207-36cbfaeaefdf" config-ref="HTTP_Request_configuration" path="instance192757/messages/chat">
+							<http:request method="POST" doc:name="Request" doc:id="b18d0e81-68f4-4839-8207-36cbfaeaefdf" config-ref="HTTP_Request_configuration" path="/instance184029/messages/chat">
 								<http:body><![CDATA[#[%dw 2.0
 output application/x-www-form-urlencoded
 ---
@@ -297,7 +290,7 @@ output application/x-www-form-urlencoded
 										<http:query-params><![CDATA[#[output application/json
 ---
 {
-	token : "o3ptdhupb2ou5ej0"
+	token : "s4gyjlv0audzesjd"
 }]]]></http:query-params>
 							</http:request>
 							<logger level="INFO" doc:name="UltraMsg Response" doc:id="44556e12-6174-4ea9-8539-edf76ea0aadf" message="#[write(payload,'application/json')]" />
