@@ -1,4 +1,4 @@
-name: Deploy Mule application to CloudHub
+name: Deploy Mule application to CloudHub 2.0
 
 on:
   push:
@@ -24,7 +24,7 @@ jobs:
           java-version: '17'
           cache: maven
 
-      - name: Deploy to CloudHub
+      - name: Deploy to CloudHub 2.0
         env:
           ANYPOINT_CLIENT_ID: ${{ secrets.ANYPOINT_CLIENT_ID }}
           ANYPOINT_CLIENT_SECRET: ${{ secrets.ANYPOINT_CLIENT_SECRET }}
@@ -34,13 +34,14 @@ jobs:
           -Danypoint.client.secret="${{ secrets.ANYPOINT_CLIENT_SECRET }}"
           -Dcloudhub.application.name="${{ secrets.CLOUDHUB_APPLICATION_NAME }}"
           -Dcloudhub.environment="${{ secrets.CLOUDHUB_ENVIRONMENT }}"
-          -Dcloudhub.region="${{ secrets.CLOUDHUB_REGION }}"
-          -Dcloudhub.workers="${{ secrets.CLOUDHUB_WORKERS }}"
-          -Dcloudhub.workerType="${{ secrets.CLOUDHUB_WORKER_TYPE }}"
+          -Dcloudhub.target="${{ secrets.CLOUDHUB_TARGET }}"
+          -Dcloudhub.replicas="${{ secrets.CLOUDHUB_REPLICAS }}"
+          -Dcloudhub.vcores="${{ secrets.CLOUDHUB_VCORES }}"
 
       - name: Deployment summary
         if: success()
         run: |
-          echo "CloudHub deployment completed."
+          echo "CloudHub 2.0 deployment completed."
           echo "Application: ${{ secrets.CLOUDHUB_APPLICATION_NAME }}"
           echo "Environment: ${{ secrets.CLOUDHUB_ENVIRONMENT }}"
+          echo "Target: ${{ secrets.CLOUDHUB_TARGET }}"
