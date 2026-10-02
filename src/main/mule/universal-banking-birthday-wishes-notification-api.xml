@@ -21,7 +21,7 @@ http://www.mulesoft.org/schema/mule/sns http://www.mulesoft.org/schema/mule/sns/
 		</email:smtp-connection>
 	</email:smtp-config>
 	<http:listener-config name="Dashboard_HTTP_Listener" doc:name="Dashboard HTTP Listener" doc:id="dashboard-http-listener">
-		<http:listener-connection host="0.0.0.0" port="8081" />
+		<http:listener-connection host="0.0.0.0" port="${http.port}" />
 	</http:listener-config>
 	<http:request-config name="HTTP_Request_configuration" doc:name="HTTP Request configuration" doc:id="134c1f4b-c2c0-4df9-89d9-ed02f7561c82" >
 		<http:request-connection host="api.ultramsg.com" />
