@@ -36,9 +36,7 @@
 						<uri>https://anypoint.mulesoft.com</uri>
 						<provider>MC</provider>
 						<muleVersion>${app.runtime}</muleVersion>
-						<connectedAppClientId>${anypoint.client.id}</connectedAppClientId>
-						<connectedAppClientSecret>${anypoint.client.secret}</connectedAppClientSecret>
-						<connectedAppGrantType>client_credentials</connectedAppGrantType>
+						<authToken>${anypoint.auth.token}</authToken>
 						<applicationName>${cloudhub.application.name}</applicationName>
 						<environment>${cloudhub.environment}</environment>
 						<target>${cloudhub.target}</target>
