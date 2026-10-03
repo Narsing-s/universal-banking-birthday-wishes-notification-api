@@ -1,16 +1,3 @@
 {
-  "rewrites": [
-    {
-      "source": "/",
-      "destination": "/src/main/resources/site/index.html"
-    },
-    {
-      "source": "/ui",
-      "destination": "/src/main/resources/site/index.html"
-    },
-    {
-      "source": "/ui/",
-      "destination": "/src/main/resources/site/index.html"
-    }
-  ]
+  "cleanUrls": true
 }
