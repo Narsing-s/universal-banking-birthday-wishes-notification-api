@@ -169,7 +169,7 @@ jobs:
           fi
 
           echo "Artifact: $artifact"
-          sha256sum "$artifact" | tee target/mule-artifact.sha256
+          (cd target && sha256sum "$(basename "$artifact")" | tee mule-artifact.sha256)
 
       - name: Publish application to Anypoint Exchange
         env:
