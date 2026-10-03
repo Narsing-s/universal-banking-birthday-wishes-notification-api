@@ -53,6 +53,7 @@
               <SMTP_USER>${env.SMTP_USER}</SMTP_USER>
               <SMTP_PASSWORD>${env.SMTP_PASSWORD}</SMTP_PASSWORD>
               <ULTRAMSG_TOKEN>${env.ULTRAMSG_TOKEN}</ULTRAMSG_TOKEN>
+              <BUILD_SHA>${env.BUILD_SHA}</BUILD_SHA>
             </properties>
           </cloudhub2Deployment>
           <sharedLibraries>
