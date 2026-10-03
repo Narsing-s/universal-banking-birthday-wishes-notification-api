@@ -152,7 +152,7 @@ jobs:
           echo "Shared CloudHub target: ${CLOUDHUB_TARGET}"
 
   build-artifact:
-    environment: ${{ inputs.environment == 'all' && 'dev' || inputs.environment }}
+    environment: ${{ github.event_name == 'push' && 'dev' || inputs.environment == 'all' && 'dev' || inputs.environment }}
     name: 📦 Build & Package Mule Artifact
     runs-on: ubuntu-latest
     needs: validate-config
