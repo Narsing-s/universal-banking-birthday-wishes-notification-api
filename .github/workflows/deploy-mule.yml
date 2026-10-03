@@ -9,7 +9,6 @@ on:
 permissions:
   contents: read
   actions: read
-  metadata: read
 
 concurrency:
   group: mule-cicd-${{ github.ref }}
