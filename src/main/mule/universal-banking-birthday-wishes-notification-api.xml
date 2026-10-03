@@ -173,6 +173,7 @@ var customers = []
 		</http:listener>
 		<set-variable variableName="page" value="#[((attributes.queryParams.page default '1') as Number) max 1]" />
 		<set-variable variableName="pageSize" value="#[((attributes.queryParams.limit default '100') as Number) max 1 min 100]" />
+		<set-variable variableName="offset" value="#[((vars.page - 1) * vars.pageSize) max 0]" />
 		<set-variable variableName="search" value="#[attributes.queryParams.search default '']" />
 		<snowflake:select doc:name="Load customer page" config-ref="Snowflake_Config">
 			<snowflake:sql><![CDATA[
@@ -185,12 +186,13 @@ WHERE STATUS = 'ACTIVE'
        OR UPPER(EMAIL) LIKE '%' || UPPER(:search) || '%'
        OR UPPER(ACCOUNTNUMBER) LIKE '%' || UPPER(:search) || '%')
 ORDER BY FULLNAME
-LIMIT :pageSize OFFSET ((:page - 1) * :pageSize)
+LIMIT :pageSize OFFSET :offset
 ]]></snowflake:sql>
 			<snowflake:input-parameters><![CDATA[#[{
 				search: vars.search,
 				page: vars.page,
-				pageSize: vars.pageSize
+				pageSize: vars.pageSize,
+				offset: vars.offset
 			}]]]></snowflake:input-parameters>
 		</snowflake:select>
 		<set-variable variableName="customerPage" value="#[payload]" />
