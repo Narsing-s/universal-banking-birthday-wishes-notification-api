@@ -61,8 +61,9 @@ main{padding:24px 20px 50px}.toolbar{display:flex;justify-content:space-between;
     "https://birthday-wish-notification-api-west-615dv3.5sc6y6-3.usa-e2.cloudhub.io/api",
     "https://birthday-wish-notification-api-westb-615dv3.5sc6y6-3.usa-e2.cloudhub.io/api"
   ];
-  const configuredApi=(params.get("apiBase")||window.localStorage.getItem("birthdayApiBase")||"").replace(/\/$/,"");
-  const API_BASES=configuredApi?[configuredApi]:DEFAULT_API_BASES;
+  const configuredApi=(params.get("apiBase")||"").replace(/\/$/,"");
+  const rememberedApi=(window.localStorage.getItem("birthdayApiBase")||"").replace(/\/$/,"");
+  const API_BASES=configuredApi?[configuredApi]:Array.from(new Set([rememberedApi,...DEFAULT_API_BASES].filter(Boolean)));
   let API_BASE=API_BASES[0];
   let ACTIVE_REGION="UNKNOWN";
   const API_URL=()=>API_BASE+"/dashboard";
