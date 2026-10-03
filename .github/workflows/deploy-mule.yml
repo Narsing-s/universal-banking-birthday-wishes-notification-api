@@ -83,7 +83,7 @@ jobs:
             mule-artifact.json
             src/main/mule/universal-banking-birthday-wishes-notification-api.xml
             src/main/resources/config/cloud.yaml
-            src/main/resources/config/local.yaml
+            src/main/resources/config/local.yaml.example
           )
           for file in "${required[@]}"; do
             test -s "$file" || { echo "::error::Missing required project file: $file"; exit 1; }
