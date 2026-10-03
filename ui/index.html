@@ -18,7 +18,18 @@ main{padding:24px 20px 50px}.toolbar{display:flex;justify-content:space-between;
 <header><div class="wrap"><div class="top"><div><div class="eyebrow">MuleSoft • Snowflake • SMTP</div><h1>Universal Banking Birthday Notification Center</h1><p>Live Snowflake customers • scheduled birthday detection • email delivery tracking</p></div><div class="pill" id="apiStatus">CONNECTING API…</div></div></div></header>
 <main class="wrap">
 <div id="error" class="error"></div>
-<div class="toolbar"><small id="updated">Loading live data…</small><button class="secondary" id="refreshBtn" type="button">↻ Refresh</button></div>
+<div class="toolbar">
+  <div>
+    <small id="updated">Loading live data…</small><br>
+    <small id="runtimeInfo" style="color:var(--muted)">Runtime: checking…</small>
+  </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap">
+    <button class="secondary" id="testRunBtn" type="button">▶ Run birthday check</button>
+    <button class="secondary" id="healthBtn" type="button">♥ Check health</button>
+    <button class="secondary" id="refreshBtn" type="button">↻ Refresh</button>
+  </div>
+</div>
+<div id="actionMessage" class="notice" style="display:none;margin-top:-4px;margin-bottom:16px"></div>
 <section class="metrics">
 <div class="card"><div class="metric" id="totalCustomers">—</div><div class="label">Total customers</div><div class="delta">Active customers</div></div>
 <div class="card"><div class="metric" id="birthdaysToday">—</div><div class="label">Birthdays today</div><div class="delta">Active customers</div></div>
@@ -43,9 +54,14 @@ main{padding:24px 20px 50px}.toolbar{display:flex;justify-content:space-between;
 "use strict";
 (function(){
   const params=new URLSearchParams(window.location.search);
-  const API_BASE=(params.get("apiBase")||"https://birthday-notification-api-tlpwq.5sc6y6-2.usa-e2.cloudhub.io/api").replace(/\/$/,"");
+  const DEFAULT_API_BASE="https://birthday-notification-api-tlpwq.5sc6y6-2.usa-e2.cloudhub.io/api";
+  const API_BASE=(params.get("apiBase")||window.localStorage.getItem("birthdayApiBase")||DEFAULT_API_BASE).replace(/\/$/,"");
   const API_URL=API_BASE+"/dashboard";
   const CUSTOMERS_URL=API_BASE+"/customers";
+  const RUNTIME_URL=API_BASE+"/runtime-info";
+  const HEALTH_URL=API_BASE+"/health";
+  const DEPENDENCY_HEALTH_URL=API_BASE+"/health/dependencies";
+  const TEST_RUN_URL=API_BASE+"/test/birthday-run";
   const data={metrics:{},customers:[],sentByDay:[],monthlyBirthdays:[]};
 
   function $(id){return document.getElementById(id);}
@@ -67,6 +83,7 @@ main{padding:24px 20px 50px}.toolbar{display:flex;justify-content:space-between;
   }
   function normalizeCustomers(payload){
     let list=[];
+
     if(Array.isArray(payload)) list=payload;
     else if(payload&&Array.isArray(payload.customers)) list=payload.customers;
     else if(payload&&Array.isArray(payload.data)) list=payload.data;
@@ -119,17 +136,25 @@ main{padding:24px 20px 50px}.toolbar{display:flex;justify-content:space-between;
       return (Date.now()-d.getTime())<=30*86400000;
     }).length;
 
-    $("totalCustomers").textContent=money(customers.length);
-    $("birthdaysToday").textContent=money(todayCount);
-    $("wishesSent").textContent=money(sentCount);
-    $("sentRecent").textContent=money(sentRecentCount);
-    $("pending").textContent=money(pendingCount);
+    const m=data.metrics||{};
+    const totalMetric=Number(m.totalCustomers);
+    const todayMetric=Number(m.birthdaysToday);
+    const sentMetric=Number(m.birthdayWishesSent);
+    const recentMetric=Number(m.sentLast30Days);
+    const pendingMetric=Number(m.pending);
+    $("totalCustomers").textContent=money(Number.isFinite(totalMetric)?totalMetric:customers.length);
+    $("birthdaysToday").textContent=money(Number.isFinite(todayMetric)?todayMetric:todayCount);
+    $("wishesSent").textContent=money(Number.isFinite(sentMetric)?sentMetric:sentCount);
+    $("sentRecent").textContent=money(Number.isFinite(recentMetric)?recentMetric:sentRecentCount);
+    $("pending").textContent=money(Number.isFinite(pendingMetric)?pendingMetric:pendingCount);
     $("customers30").textContent=money(next30Count);
 
-    const total=customers.length;
-    const pct=total?Math.round(sentCount/total*100):0;
+    const total=Number.isFinite(totalMetric)?totalMetric:customers.length;
+    const sentForPct=Number.isFinite(sentMetric)?sentMetric:sentCount;
+    const pendingForPct=Number.isFinite(pendingMetric)?pendingMetric:pendingCount;
+    const pct=total?Math.min(100,Math.round(sentForPct/total*100)):0;
     $("sentPct").textContent=pct+"%";
-    $("pendingPct").textContent=(100-pct)+"%";
+    $("pendingPct").textContent=(total?Math.min(100,Math.round(pendingForPct/total*100)):100)+"%";
     $("donut").style.background="conic-gradient(#0f9d68 0 "+pct+"%,#e7ad42 "+pct+"% 100%)";
 
     bars("emailChart",data.sentByDay||[],function(x){return String(x.date||"").slice(5);});
@@ -155,6 +180,62 @@ main{padding:24px 20px 50px}.toolbar{display:flex;justify-content:space-between;
       if(!response.ok)throw new Error("HTTP "+response.status+(text?" — "+text.slice(0,180):""));
       try{return JSON.parse(text);}catch(e){throw new Error("API returned non-JSON data");}
     }finally{clearTimeout(timer);}
+  }
+
+  async function loadRuntime(){
+    try{
+      const r=await fetchJson(RUNTIME_URL);
+      $("runtimeInfo").textContent="Runtime: "+(r.runtime||"Mule")+" · "+(r.environment||"unknown")+" · "+(r.buildSha||"unknown").slice(0,12);
+      return r;
+    }catch(e){
+      $("runtimeInfo").textContent="Runtime: unavailable · "+e.message;
+      return null;
+    }
+  }
+
+  async function checkHealth(){
+    try{
+      const h=await fetchJson(DEPENDENCY_HEALTH_URL);
+      const ok=String(h.status||"").toUpperCase()==="UP" && String(h.snowflake||"").toUpperCase()==="UP";
+      $("snowStatus").textContent=ok?"● Live":"● Degraded";
+      $("snowStatus").style.color=ok?"var(--green)":"var(--red)";
+      showAction(ok?"Dependency health is UP — Snowflake is reachable.":"Dependency health returned a degraded state.",!ok);
+      return h;
+    }catch(e){
+      $("snowStatus").textContent="● Error";
+      $("snowStatus").style.color="var(--red)";
+      showAction("Health check failed: "+e.message,true);
+      return null;
+    }
+  }
+
+  async function runBirthdayCheck(){
+    const button=$("testRunBtn");
+    button.disabled=true;
+    button.textContent="Running…";
+    try{
+      const response=await fetch(TEST_RUN_URL,{method:"POST",headers:{Accept:"application/json","Content-Type":"application/json"},cache:"no-store"});
+      const text=await response.text();
+      if(!response.ok)throw new Error("HTTP "+response.status+(text?" — "+text.slice(0,180):""));
+      let result; try{result=JSON.parse(text);}catch(e){throw new Error("API returned non-JSON data");}
+      showAction("Birthday check completed: "+(result.candidatesFound??0)+" candidate(s) placed in the shared outbox. Refreshing live data…",false);
+      await loadDashboard();
+      setTimeout(loadDashboard,65000);
+    }catch(e){
+      showAction("Birthday check failed: "+e.message+". Confirm the deployed JAR contains the manual endpoint.",true);
+    }finally{
+      button.disabled=false;
+      button.textContent="▶ Run birthday check";
+    }
+  }
+
+  function showAction(message,isError){
+    const el=$("actionMessage");
+    el.textContent=message;
+    el.style.display="block";
+    el.style.background=isError?"#fff0f0":"#eef7ff";
+    el.style.borderColor=isError?"#efb0b0":"#b9d9f5";
+    el.style.color=isError?"#9b2020":"#214d70";
   }
 
   async function loadDashboard(){
@@ -205,10 +286,18 @@ main{padding:24px 20px 50px}.toolbar{display:flex;justify-content:space-between;
     }
   }
 
-  $("refreshBtn").addEventListener("click",loadDashboard);
+  $("refreshBtn").addEventListener("click",async function(){
+    await loadRuntime();
+    await loadDashboard();
+  });
+  $("healthBtn").addEventListener("click",checkHealth);
+  $("testRunBtn").addEventListener("click",runBirthdayCheck);
   $("search").addEventListener("input",window.renderTable);
   $("range").addEventListener("change",window.renderTable);
+  window.addEventListener("online",loadDashboard);
+  loadRuntime();
   loadDashboard();
+  checkHealth();
 })();
 </script>
 </body>
