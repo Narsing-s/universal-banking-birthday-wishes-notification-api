@@ -211,15 +211,14 @@ main{padding:24px 20px 50px}.toolbar{display:flex;justify-content:space-between;
   }
 
   async function selectHealthyRegion(){
-    if(API_BASES.length===1){
-      const ok=await fetchJson(API_BASES[0]+"/dashboard",5000).catch(function(){return null;});
-      if(ok){API_BASE=API_BASES[0];ACTIVE_REGION=regionName(API_BASE);return true;}
-      return false;
-    }
-    const probes=API_BASES.map(function(base){
-      return fetchJson(base+"/health",5000).then(function(h){
-        if(String(h&&h.status||"").toUpperCase()!=="UP")throw new Error("degraded");
-        return {base:base};
+    // Select a region using a real Snowflake-backed dashboard probe.
+    // /health only reports the Mule runtime itself and can therefore select
+    // a region whose database connection is broken.
+    const candidates=Array.from(new Set(API_BASES.filter(Boolean)));
+    const probes=candidates.map(function(base){
+      return fetchJson(base+"/dashboard",7000).then(function(d){
+        if(!d || typeof d!=="object" || !d.metrics) throw new Error("invalid dashboard response");
+        return {base:base,data:d};
       });
     });
     try{
@@ -227,18 +226,9 @@ main{padding:24px 20px 50px}.toolbar{display:flex;justify-content:space-between;
       API_BASE=winner.base;
       ACTIVE_REGION=regionName(API_BASE);
       window.localStorage.setItem("birthdayApiBase",API_BASE);
-      return true;
+      return winner.data;
     }catch(e){
-      const dataProbes=API_BASES.map(function(base){
-        return fetchJson(base+"/dashboard",5000).then(function(d){return {base:base,data:d};});
-      });
-      try{
-        const winner=await Promise.any(dataProbes);
-        API_BASE=winner.base;
-        ACTIVE_REGION=regionName(API_BASE);
-        window.localStorage.setItem("birthdayApiBase",API_BASE);
-        return true;
-      }catch(e2){return false;}
+      return null;
     }
   }
 
@@ -333,9 +323,12 @@ main{padding:24px 20px 50px}.toolbar{display:flex;justify-content:space-between;
     $("apiStatus").style.background="#0f9d6833";
     $("updated").textContent="Loading live data from "+ACTIVE_REGION+"…";
 
+    // Reuse the successful dashboard probe instead of making the first
+    // Snowflake request twice. Then load the remaining datasets in parallel.
+    const dashboardPromise=Promise.resolve(selected);
     const results=await Promise.allSettled([
-      fetchJson(API_URL()),
-      fetchJson(OUTBOX_URL()),
+      dashboardPromise,
+      fetchJson(OUTBOX_URL(),10000),
       loadCustomersPage(1)
     ]);
     const errors=[];
@@ -344,6 +337,18 @@ main{padding:24px 20px 50px}.toolbar{display:flex;justify-content:space-between;
       data.metrics=dashboard.metrics||{};
       data.sentByDay=Array.isArray(dashboard.sentByDay)?dashboard.sentByDay:[];
       data.monthlyBirthdays=Array.isArray(dashboard.monthlyBirthdays)?dashboard.monthlyBirthdays:[];
+      // Dashboard already contains a useful customer snapshot. Keep it as a
+      // fallback so the UI can still render data if the paginated endpoint is
+      // temporarily unavailable.
+      if(Array.isArray(dashboard.customers) && dashboard.customers.length && !data.customers.length){
+        data.customers=normalizeCustomers(dashboard.customers);
+        data.customerTotal=data.customers.length;
+        data.customerPage=1;
+        data.customerTotalPages=1;
+        $("customerStatus").textContent="● Live (dashboard snapshot)";
+        $("customerStatus").style.color="var(--green)";
+        $("customerPageInfo").textContent="Showing 1–"+data.customers.length+" of "+money(data.customers.length)+" customers";
+      }
       $("dashStatus").textContent="● Live"; $("dashStatus").style.color="var(--green)";
     }else{
       errors.push("Dashboard: "+results[0].reason.message);
@@ -354,8 +359,14 @@ main{padding:24px 20px 50px}.toolbar{display:flex;justify-content:space-between;
       renderOutbox(outbox&&Array.isArray(outbox.notifications)?outbox.notifications:[]);
     }else errors.push("Outbox: "+results[1].reason.message);
     if(results[2].status==="rejected"){
-      errors.push("Customers: "+results[2].reason.message);
-      $("customerStatus").textContent="● Error"; $("customerStatus").style.color="var(--red)";
+      errors.push("Customers API: "+results[2].reason.message);
+      if(Array.isArray(data.customers) && data.customers.length){
+        $("customerStatus").textContent="● Live (dashboard snapshot)";
+        $("customerStatus").style.color="var(--green)";
+      }else{
+        $("customerStatus").textContent="● Error";
+        $("customerStatus").style.color="var(--red)";
+      }
     }
 
     render();
