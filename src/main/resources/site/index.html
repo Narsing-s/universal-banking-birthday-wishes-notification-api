@@ -66,6 +66,9 @@ main{padding:24px 20px 50px}.toolbar{display:flex;justify-content:space-between;
   const API_BASES=configuredApi?[configuredApi]:Array.from(new Set([rememberedApi,...DEFAULT_API_BASES].filter(Boolean)));
   let API_BASE=API_BASES[0];
   let ACTIVE_REGION="UNKNOWN";
+  let refreshInFlight=false;
+  let autoRefreshTimer=null;
+  const AUTO_REFRESH_MS=15000;
   const API_URL=()=>API_BASE+"/dashboard";
   const CUSTOMERS_URL=()=>API_BASE+"/customers";
   const RUNTIME_URL=()=>API_BASE+"/runtime-info";
@@ -305,7 +308,10 @@ main{padding:24px 20px 50px}.toolbar{display:flex;justify-content:space-between;
     renderTable();
   }
 
-  async function loadDashboard(){
+  async function loadDashboard(options){
+    options=options||{};
+    if(refreshInFlight) return;
+    refreshInFlight=true;
     $("error").style.display="none";
     $("apiStatus").textContent="CONNECTING…";
     $("updated").textContent="Finding a healthy regional API…";
@@ -377,9 +383,15 @@ main{padding:24px 20px 50px}.toolbar{display:flex;justify-content:space-between;
       $("error").textContent=errors.join(" | ")+" | Active region: "+ACTIVE_REGION;
       $("error").style.display="block";
     }
+    refreshInFlight=false;
+    if(!options.noSchedule){
+      clearTimeout(autoRefreshTimer);
+      autoRefreshTimer=setTimeout(function(){loadDashboard();},AUTO_REFRESH_MS);
+    }
   }
 
   $("refreshBtn").addEventListener("click",async function(){
+    clearTimeout(autoRefreshTimer);
     await loadRuntime();
     await loadDashboard();
   });
@@ -389,10 +401,16 @@ main{padding:24px 20px 50px}.toolbar{display:flex;justify-content:space-between;
   $("range").addEventListener("change",window.renderTable);
   $("prevPage").addEventListener("click",function(){if(data.customerPage>1)loadCustomersPage(data.customerPage-1);});
   $("nextPage").addEventListener("click",function(){if(data.customerPage<data.customerTotalPages)loadCustomersPage(data.customerPage+1);});
-  window.addEventListener("online",loadDashboard);
+  window.addEventListener("online",function(){loadDashboard();});
+  document.addEventListener("visibilitychange",function(){
+    if(document.visibilityState==="visible") loadDashboard();
+  });
   loadRuntime();
   loadDashboard();
   checkHealth();
+  // Poll the Snowflake-backed APIs every 15 seconds so new/changed DB rows
+  // appear automatically without a page reload. The in-flight guard prevents
+  // overlapping requests when a slow region is still responding.
 })();
 </script>
 </body>
