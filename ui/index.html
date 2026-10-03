@@ -272,28 +272,36 @@ main{padding:24px 20px 50px}.toolbar{display:flex;justify-content:space-between;
     $("updated").textContent="Loading live data…";
     let dashboardOk=false;
     const errors=[];
-    try{
-      const dashboard=await fetchJson(API_URL);
+    const results=await Promise.allSettled([
+      fetchJson(API_URL),
+      fetchJson(OUTBOX_URL),
+      loadCustomersPage(1)
+    ]);
+    const dashboardResult=results[0];
+    if(dashboardResult.status==="fulfilled"){
+      const dashboard=dashboardResult.value;
       data.metrics=dashboard.metrics||{};
       data.sentByDay=Array.isArray(dashboard.sentByDay)?dashboard.sentByDay:[];
       data.monthlyBirthdays=Array.isArray(dashboard.monthlyBirthdays)?dashboard.monthlyBirthdays:[];
       dashboardOk=true;
       $("dashStatus").textContent="● Live"; $("dashStatus").style.color="var(--green)";
-    }catch(e){
-      errors.push("Dashboard: "+e.message);
+    }else{
+      errors.push("Dashboard: "+dashboardResult.reason.message);
       $("dashStatus").textContent="● Error"; $("dashStatus").style.color="var(--red)";
     }
-    try{
-      const outboxPayload=await fetchJson(OUTBOX_URL);
+    const outboxResult=results[1];
+    if(outboxResult.status==="fulfilled"){
+      const outboxPayload=outboxResult.value;
       renderOutbox(outboxPayload&&Array.isArray(outboxPayload.notifications)?outboxPayload.notifications:[]);
-    }catch(e){
-      $("outboxRows").innerHTML='<tr><td colspan="8">Outbox API error: '+escapeHtml(e.message)+'</td></tr>';
+    }else{
+      $("outboxRows").innerHTML='<tr><td colspan="8">Outbox API error: '+escapeHtml(outboxResult.reason.message)+'</td></tr>';
     }
-    render();
-    try{ await loadCustomersPage(1); }catch(e){
-      errors.push("Customers: "+e.message);
+    const customersResult=results[2];
+    if(customersResult.status==="rejected"){
+      errors.push("Customers: "+customersResult.reason.message);
       $("customerStatus").textContent="● Error"; $("customerStatus").style.color="var(--red)";
     }
+    render();
     if(dashboardOk){
       $("apiStatus").textContent="API CONNECTED";
       $("apiStatus").style.background="#0f9d6833";
