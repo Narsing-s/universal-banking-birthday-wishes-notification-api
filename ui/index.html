@@ -179,7 +179,7 @@ main{padding:24px 20px 50px}.toolbar{display:flex;justify-content:space-between;
       const when=d===0?"Today":d===1?"Tomorrow":dateText(c.birthday);
       return '<div style="padding:8px 0;border-bottom:1px solid var(--line)"><b>'+escapeHtml(c.name)+'</b> · '+escapeHtml(c.bankName||"—")+'<br><small>'+when+' · '+escapeHtml(c.email||"—")+' · <span class="status '+(c.sent?"sent":"pending")+'">'+(c.sent?"Wish sent":"Pending email")+'</span></small></div>';
     }).join(""):"<div style="color:var(--muted);font-size:12px">No birthday customers found for today or tomorrow.</div>";
-    window.renderTable();\n    if(data.customerTotal>data.customers.length){$("rows").insertAdjacentHTML("beforebegin",'<div class="notice" style="margin-bottom:10px">Showing the first 500 customers for fast initial rendering. Search/pagination API can be added without downloading the full dataset.</div>');}
+    window.renderTable();
   }
 
   async function fetchJson(url){
