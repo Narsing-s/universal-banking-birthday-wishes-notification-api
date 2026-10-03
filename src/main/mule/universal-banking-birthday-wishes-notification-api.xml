@@ -26,6 +26,34 @@ http://www.mulesoft.org/schema/mule/sns http://www.mulesoft.org/schema/mule/sns/
 	<http:request-config name="HTTP_Request_configuration" doc:name="HTTP Request configuration" doc:id="134c1f4b-c2c0-4df9-89d9-ed02f7561c82" >
 		<http:request-connection host="api.ultramsg.com" />
 	</http:request-config>
+<flow name="runtime-info-api" doc:name="Runtime Information API">
+		<http:listener config-ref="Dashboard_HTTP_Listener" path="/api/runtime-info" allowedMethods="GET,OPTIONS" doc:name="Runtime Info">
+			<http:response>
+				<http:headers><![CDATA[#[{
+					"Access-Control-Allow-Origin": "*",
+					"Access-Control-Allow-Methods": "GET,OPTIONS",
+					"Access-Control-Allow-Headers": "Content-Type,Authorization"
+				}]]]></http:headers>
+			</http:response>
+		</http:listener>
+		<logger level="INFO" doc:name="Runtime fingerprint" message='#["Runtime fingerprint check | env=" ++ (p("env") default "unknown") ++ " | buildSha=" ++ (p("build.sha") default "manual-or-unknown")]' />
+		<ee:transform doc:name="Build runtime info">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+  application: "universal-banking-birthday-wishes-notification-api",
+  environment: p("env") default "unknown",
+  buildSha: p("build.sha") default "manual-or-unknown",
+  configSource: "config/" ++ ((p("env") default "unknown") as String) ++ ".yaml",
+  runtime: "Mule 4.9.0",
+  timestamp: now()
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+
 <flow name="birthday-dashboard-api" doc:id="birthday-dashboard-api">
 		<http:listener config-ref="Dashboard_HTTP_Listener" path="/api/dashboard" allowedMethods="GET,OPTIONS" doc:name="Dashboard API" >
 		<http:response>
