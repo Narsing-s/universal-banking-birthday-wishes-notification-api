@@ -3,8 +3,8 @@ set -euo pipefail
 : "${OID:?OID is required}"
 : "${CID:?CID is required}"
 : "${CSEC:?CSEC is required}"
-ASSET_ID="universal-banking-api-inactive-accounts-notification"
-VERSION="1.0.0-SNAPSHOT"
+ASSET_ID="universal-banking-birthday-wishes-notification-api"
+VERSION="1.0.2"
 JAR="target/${ASSET_ID}-${VERSION}-mule-application.jar"
 token_response=$(curl -sS -w '\n%{http_code}' -X POST 'https://anypoint.mulesoft.com/accounts/api/v2/oauth2/token' -H 'Content-Type: application/x-www-form-urlencoded' --data-urlencode 'grant_type=client_credentials' --data-urlencode "client_id=$CID" --data-urlencode "client_secret=$CSEC")
 status=$(printf '%s\n' "$token_response" | tail -n1)
