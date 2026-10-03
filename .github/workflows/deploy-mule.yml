@@ -312,7 +312,14 @@ jobs:
             echo "commit_sha=${GITHUB_SHA}"
             echo "jar_name=${jar_name}"
             echo "jar_sha256=${jar_sha256}"
-            mule_artifact_json_path="$(unzip -Z1 "$artifact" | grep -E '(^|/)mule-artifact\\.json
+            mule_artifact_json_path="$(unzip -Z1 "$artifact" | grep -E '(^|/)mule-artifact\\.json$' | head -n1 || true)"
+            if [ -n "$mule_artifact_json_path" ]; then
+              echo "mule_artifact_json_path=${mule_artifact_json_path}"
+              echo "mule_artifact_json_sha256=$(unzip -p "$artifact" "$mule_artifact_json_path" | sha256sum | cut -d' ' -f1)"
+            else
+              echo "mule_artifact_json_path=not-packaged"
+              echo "mule_artifact_json_sha256=not-packaged"
+            fi
             echo "main_mule_xml_path=${mule_xml}"
             echo "main_mule_xml_sha256=$(sha256sum target/packaged-mule.xml | cut -d' ' -f1)"
             echo "cloud_yaml_sha256=$(unzip -p "$artifact" config/cloud.yaml | sha256sum | cut -d' ' -f1)"
@@ -320,7 +327,6 @@ jobs:
             echo "source_ref=${GITHUB_REF}"
             echo "build_timestamp=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
           } > target/mule-build-manifest.txt
-          cat target/mule-build-manifest.txt
 
       - name: Publish application to Anypoint Exchange
         env:
@@ -368,10 +374,11 @@ jobs:
 
           (cd artifact && sha256sum -c mule-artifact.sha256)
 
-          if ! unzip -l "$jar" | grep -q 'mule-artifact.json'; then
-            echo "::error::mule-artifact.json is missing from the application artifact."
-            exit 1
-          fi
+          mule_xml_path="$(unzip -Z1 "$jar" | grep -F "universal-banking-birthday-wishes-notification-api.xml" | head -n1 || true)"
+          test -n "$mule_xml_path" || { echo "::error::Main Mule application XML is missing from artifact."; exit 1; }
+          unzip -p "$jar" "$mule_xml_path" > artifact/packaged-mule.xml
+          test -s artifact/packaged-mule.xml
+          echo "Packaged Mule XML: $mule_xml_path"
 
           test -s artifact/mule-build-manifest.txt
           grep -q "^commit_sha=${GITHUB_SHA}$" artifact/mule-build-manifest.txt
