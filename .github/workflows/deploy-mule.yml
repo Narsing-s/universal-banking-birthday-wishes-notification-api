@@ -286,6 +286,7 @@ jobs:
           SMTP_USER: ${{ secrets.SMTP_USER }}
           SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
           ULTRAMSG_TOKEN: ${{ secrets.ULTRAMSG_TOKEN }}
+          BUILD_SHA: ${{ github.sha }}
           CLOUDHUB_APPLICATION_NAME: ${{ secrets.CLOUDHUB_APPLICATION_NAME }}
           CLOUDHUB_ENVIRONMENT: ${{ secrets.CLOUDHUB_ENVIRONMENT }}
           CLOUDHUB_TARGET: ${{ secrets.CLOUDHUB_TARGET_WEST || secrets.CLOUDHUB_TARGET }}
@@ -351,6 +352,7 @@ jobs:
           SMTP_USER: ${{ secrets.SMTP_USER }}
           SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
           ULTRAMSG_TOKEN: ${{ secrets.ULTRAMSG_TOKEN }}
+          BUILD_SHA: ${{ github.sha }}
           CLOUDHUB_APPLICATION_NAME: ${{ secrets.CLOUDHUB_APPLICATION_NAME }}
           CLOUDHUB_ENVIRONMENT: ${{ secrets.CLOUDHUB_ENVIRONMENT }}
           CLOUDHUB_TARGET: ${{ secrets.CLOUDHUB_TARGET_WESTB || secrets.CLOUDHUB_TARGET }}
@@ -416,6 +418,7 @@ jobs:
           SMTP_USER: ${{ secrets.SMTP_USER }}
           SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
           ULTRAMSG_TOKEN: ${{ secrets.ULTRAMSG_TOKEN }}
+          BUILD_SHA: ${{ github.sha }}
           CLOUDHUB_APPLICATION_NAME: ${{ secrets.CLOUDHUB_APPLICATION_NAME }}
           CLOUDHUB_ENVIRONMENT: ${{ secrets.CLOUDHUB_ENVIRONMENT }}
           CLOUDHUB_TARGET: ${{ secrets.CLOUDHUB_TARGET_EAST || secrets.CLOUDHUB_TARGET }}
