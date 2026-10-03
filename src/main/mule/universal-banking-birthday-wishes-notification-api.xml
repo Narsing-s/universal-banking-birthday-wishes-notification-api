@@ -26,6 +26,19 @@ http://www.mulesoft.org/schema/mule/sns http://www.mulesoft.org/schema/mule/sns/
 	<http:request-config name="HTTP_Request_configuration" doc:name="HTTP Request configuration" doc:id="134c1f4b-c2c0-4df9-89d9-ed02f7561c82" >
 		<http:request-connection host="api.ultramsg.com" />
 	</http:request-config>
+<flow name="dashboard-ui-static" doc:name="Dashboard UI">
+    <http:listener config-ref="Dashboard_HTTP_Listener" path="/" allowedMethods="GET,HEAD,OPTIONS" doc:name="Dashboard UI Root">
+      <http:response>
+        <http:headers><![CDATA[#[{
+          "Access-Control-Allow-Origin": "*",
+          "Access-Control-Allow-Methods": "GET,HEAD,OPTIONS",
+          "Access-Control-Allow-Headers": "Content-Type,Authorization"
+        }]]]></http:headers>
+      </http:response>
+    </http:listener>
+    <http:load-static-resource resourceBasePath="site" defaultFile="index.html" attributes="attributes" doc:name="Load dashboard UI"/>
+  </flow>
+
 <flow name="runtime-info-api" doc:name="Runtime Information API">
 		<http:listener config-ref="Dashboard_HTTP_Listener" path="/api/runtime-info" allowedMethods="GET,OPTIONS" doc:name="Runtime Info">
 			<http:response>
