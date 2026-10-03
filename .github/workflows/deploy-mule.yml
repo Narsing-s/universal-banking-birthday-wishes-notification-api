@@ -103,6 +103,41 @@ jobs:
           echo "Application: ${CLOUDHUB_APPLICATION_NAME}"
           echo "CloudHub environment: ${CLOUDHUB_ENVIRONMENT}"
           echo "Anypoint environment ID: ${CLOUDHUB_ENVIRONMENT_ID}"
+          case "${{ matrix.environment }}" in
+            dev)
+              expected_name="dev"
+              expected_id="79403e5e-3282-440a-b10b-e102ae052d0c"
+              ;;
+            qa)
+              expected_name="qa"
+              expected_id="b557d817-7ca7-4c9d-a341-fb5110df26d1"
+              ;;
+            sandbox)
+              expected_name="Sandbox"
+              expected_id="f63db7fe-e2dc-4410-a6d9-7810f0c713f6"
+              ;;
+            prod)
+              expected_name="prod"
+              expected_id="38375706-c667-4d01-8d3e-56882a29fe8b"
+              ;;
+            *)
+              echo "::error::Unsupported deployment environment: ${{ matrix.environment }}"
+              exit 1
+              ;;
+          esac
+
+          if [ "${CLOUDHUB_ENVIRONMENT}" != "${expected_name}" ]; then
+            echo "::error::[${{ matrix.environment }}] CLOUDHUB_ENVIRONMENT='${CLOUDHUB_ENVIRONMENT}' does not match expected Anypoint environment '${expected_name}'."
+            exit 1
+          fi
+
+          if [ "${CLOUDHUB_ENVIRONMENT_ID}" != "${expected_id}" ]; then
+            echo "::error::[${{ matrix.environment }}] CLOUDHUB_ENVIRONMENT_ID does not match the expected Anypoint environment ID."
+            exit 1
+          fi
+
+          echo "Anypoint environment mapping verified: ${expected_name} (${expected_id})"
+
           echo "WEST target: ${CLOUDHUB_TARGET_WEST}"
           echo "WESTB target: ${CLOUDHUB_TARGET_WESTB}"
           echo "EAST target: ${CLOUDHUB_TARGET_EAST}"
