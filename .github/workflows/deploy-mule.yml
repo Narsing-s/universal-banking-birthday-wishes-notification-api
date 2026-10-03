@@ -659,6 +659,7 @@ jobs:
       - deploy-west
       - deploy-westb
       - deploy-east
+      - smoke-test-regions
     if: always()
     steps:
       - name: Publish deployment graph and status
@@ -677,6 +678,7 @@ jobs:
             echo "| 🌎 WEST | ${{ needs.deploy-west.result }} |"
             echo "| 🌎 WESTB | ${{ needs.deploy-westb.result }} |"
             echo "| 🌎 EAST | ${{ needs.deploy-east.result }} |"
+            echo "| 🩺 Regional smoke tests | ${{ needs.smoke-test-regions.result }} |"
             echo ""
             echo "### Pipeline flow"
             echo ""
