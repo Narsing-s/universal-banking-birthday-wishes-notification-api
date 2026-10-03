@@ -1,3 +1,4 @@
+# Re-run deployment from the corrected packaged-JAR validation baseline.
 name: Mule CI/CD - Permission, Artifact Validation & Multi-Region Deployment
 
 on:
