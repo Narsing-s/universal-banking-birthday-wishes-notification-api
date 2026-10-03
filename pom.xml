@@ -48,6 +48,7 @@
             <applicationName>${cloudhub.application.name}</applicationName>
             <environment>${cloudhub.environment}</environment>
             <target>${cloudhub.target}</target>
+            <artifact>${mule.artifact}</artifact>
             <replicas>${cloudhub.replicas}</replicas>
             <vCores>${cloudhub.vcores}</vCores>
             <deploymentSettings>
