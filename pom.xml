@@ -39,7 +39,21 @@
             <target>${cloudhub.target}</target>
             <replicas>${cloudhub.replicas}</replicas>
             <vCores>${cloudhub.vcores}</vCores>
-            <properties><env>cloud</env></properties>
+            <properties>
+              <env>cloud</env>
+              <DB_SF_NAME>${env.DB_SF_NAME}</DB_SF_NAME>
+              <DB_SF_WAREHOUSE>${env.DB_SF_WAREHOUSE}</DB_SF_WAREHOUSE>
+              <DB_SF_DATABASE>${env.DB_SF_DATABASE}</DB_SF_DATABASE>
+              <DB_SF_SCHEMA>${env.DB_SF_SCHEMA}</DB_SF_SCHEMA>
+              <DB_SF_USER>${env.DB_SF_USER}</DB_SF_USER>
+              <DB_SF_PASSWORD>${env.DB_SF_PASSWORD}</DB_SF_PASSWORD>
+              <DB_SF_ROLE>${env.DB_SF_ROLE}</DB_SF_ROLE>
+              <SMTP_HOST>${env.SMTP_HOST}</SMTP_HOST>
+              <SMTP_PORT>${env.SMTP_PORT}</SMTP_PORT>
+              <SMTP_USER>${env.SMTP_USER}</SMTP_USER>
+              <SMTP_PASSWORD>${env.SMTP_PASSWORD}</SMTP_PASSWORD>
+              <ULTRAMSG_TOKEN>${env.ULTRAMSG_TOKEN}</ULTRAMSG_TOKEN>
+            </properties>
           </cloudhub2Deployment>
           <sharedLibraries>
             <sharedLibrary><groupId>net.snowflake</groupId><artifactId>snowflake-jdbc</artifactId></sharedLibrary>
