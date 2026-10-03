@@ -90,6 +90,15 @@ jobs:
           done
           echo "Mule project structure verified."
 
+      - name: Materialize Maven organization coordinates for validation
+        env:
+          ANYPOINT_ORG_ID: ${{ secrets.ANYPOINT_ORG_ID }}
+        run: |
+          set -euo pipefail
+          test -n "${ANYPOINT_ORG_ID}"
+          perl -0pi -e 's/\$\{env\.ANYPOINT_ORG_ID\}/$ENV{ANYPOINT_ORG_ID}/g' pom.xml
+          echo "Maven organization coordinates materialized for validation."
+
       - name: Validate Maven model before build
         run: |
           set -euo pipefail
