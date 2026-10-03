@@ -265,7 +265,7 @@ jobs:
           OID: ${{ secrets.ANYPOINT_ORG_ID }}
         run: |
           set -euo pipefail
-          mvn --batch-mode clean package -Denv.ANYPOINT_ORG_ID="$OID" -DskipMunitTests
+          mvn --batch-mode clean package -Denv.ANYPOINT_ORG_ID="$OID"
 
           artifact=$(find target -maxdepth 1 -type f -name '*.jar' ! -name '*-sources.jar' | head -n1)
           if [ -z "$artifact" ]; then
