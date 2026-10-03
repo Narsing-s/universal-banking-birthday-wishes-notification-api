@@ -312,7 +312,417 @@ jobs:
             echo "commit_sha=${GITHUB_SHA}"
             echo "jar_name=${jar_name}"
             echo "jar_sha256=${jar_sha256}"
-            echo "mule_artifact_json_sha256=$(unzip -p "$artifact" mule-artifact.json | sha256sum | cut -d' ' -f1)"
+            mule_artifact_json_path="$(unzip -Z1 "$artifact" | grep -E '(^|/)mule-artifact\\.json
+            echo "main_mule_xml_path=${mule_xml}"
+            echo "main_mule_xml_sha256=$(sha256sum target/packaged-mule.xml | cut -d' ' -f1)"
+            echo "cloud_yaml_sha256=$(unzip -p "$artifact" config/cloud.yaml | sha256sum | cut -d' ' -f1)"
+            echo "runtime_env=cloud"
+            echo "source_ref=${GITHUB_REF}"
+            echo "build_timestamp=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          } > target/mule-build-manifest.txt
+          cat target/mule-build-manifest.txt
+
+      - name: Publish application to Anypoint Exchange
+        env:
+          OID: ${{ secrets.ANYPOINT_ORG_ID }}
+          CID: ${{ secrets.ANYPOINT_CLIENT_ID }}
+          CSEC: ${{ secrets.ANYPOINT_CLIENT_SECRET }}
+        run: bash .github/scripts/publish-exchange-v101.sh
+
+      - name: Upload immutable build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mule-application-${{ github.sha }}
+          path: |
+            target/*.jar
+            target/mule-artifact.sha256
+            target/mule-build-manifest.txt
+          if-no-files-found: error
+          retention-days: 14
+
+  artifact-check:
+    environment: ${{ inputs.environment == 'all' && 'dev' || inputs.environment }}
+    name: 🧪 Artifact Validation
+    runs-on: ubuntu-latest
+    needs: build-artifact
+    steps:
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: mule-application-${{ github.sha }}
+          path: artifact
+
+      - name: Validate artifact structure and checksum
+        run: |
+          set -euo pipefail
+
+          jars=(artifact/*.jar)
+          if [ "${#jars[@]}" -ne 1 ]; then
+            echo "::error::Expected exactly one Mule application JAR; found ${#jars[@]}."
+            exit 1
+          fi
+
+          jar="${jars[0]}"
+          test -s "$jar"
+          test -s artifact/mule-artifact.sha256
+
+          (cd artifact && sha256sum -c mule-artifact.sha256)
+
+          if ! unzip -l "$jar" | grep -q 'mule-artifact.json'; then
+            echo "::error::mule-artifact.json is missing from the application artifact."
+            exit 1
+          fi
+
+          test -s artifact/mule-build-manifest.txt
+          grep -q "^commit_sha=${GITHUB_SHA}$" artifact/mule-build-manifest.txt
+          grep -q "^runtime_env=cloud$" artifact/mule-build-manifest.txt
+          grep -q "^source_ref=refs/heads/main$" artifact/mule-build-manifest.txt
+          manifest_jar_sha="$(awk -F= '$1=="jar_sha256"{print $2}' artifact/mule-build-manifest.txt)"
+          actual_jar_sha="$(sha256sum "$jar" | cut -d' ' -f1)"
+          test "$manifest_jar_sha" = "$actual_jar_sha"
+
+          echo "Artifact validation passed."
+          echo "Build manifest:"
+          cat artifact/mule-build-manifest.txt
+          echo "Artifact: $(basename "$jar")"
+          echo "Size: $(du -h "$jar" | cut -f1)"
+
+  deploy-west:
+    strategy:
+      fail-fast: false
+      matrix:
+        environment: ${{ fromJSON(github.event_name == 'push' && '["dev"]' || inputs.environment == 'all' && '["dev","qa","sandbox","prod"]' || format('["{0}"]', inputs.environment)) }}
+    name: 🌎 Deploy — WEST
+    runs-on: ubuntu-latest
+    needs: artifact-check
+    environment: ${{ matrix.environment }}
+    steps:
+      - name: Checkout deployment descriptor
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+
+      - name: Download immutable artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: mule-application-${{ github.sha }}
+          path: artifact
+
+      - name: Deploy WEST
+        env:
+          ANYPOINT_CLIENT_ID: ${{ secrets.ANYPOINT_CLIENT_ID }}
+          ANYPOINT_CLIENT_SECRET: ${{ secrets.ANYPOINT_CLIENT_SECRET }}
+          ANYPOINT_ORG_ID: ${{ secrets.ANYPOINT_ORG_ID }}
+          DB_SF_NAME: ${{ secrets.DB_SF_NAME }}
+          DB_SF_WAREHOUSE: ${{ secrets.DB_SF_WAREHOUSE }}
+          DB_SF_DATABASE: ${{ secrets.DB_SF_DATABASE }}
+          DB_SF_SCHEMA: ${{ secrets.DB_SF_SCHEMA }}
+          DB_SF_USER: ${{ secrets.DB_SF_USER }}
+          DB_SF_PASSWORD: ${{ secrets.DB_SF_PASSWORD }}
+          DB_SF_ROLE: ${{ secrets.DB_SF_ROLE }}
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          ULTRAMSG_TOKEN: ${{ secrets.ULTRAMSG_TOKEN }}
+          BUILD_SHA: ${{ github.sha }}
+          REGION_NAME: WEST
+          CLOUDHUB_APPLICATION_NAME: ${{ secrets.CLOUDHUB_APPLICATION_NAME }}
+          CLOUDHUB_ENVIRONMENT: ${{ secrets.CLOUDHUB_ENVIRONMENT }}
+          CLOUDHUB_TARGET: ${{ secrets.CLOUDHUB_TARGET }}
+          CLOUDHUB_REPLICAS: ${{ secrets.CLOUDHUB_REPLICAS }}
+          CLOUDHUB_VCORES: ${{ secrets.CLOUDHUB_VCORES }}
+        run: |
+          set -euo pipefail
+          artifact=$(find artifact -maxdepth 1 -type f -name '*.jar' | head -n1)
+          test -n "$CLOUDHUB_TARGET"
+          test -s artifact/mule-artifact.sha256
+          (cd artifact && sha256sum -c mule-artifact.sha256)
+          echo "Deploying immutable artifact: $(basename "$artifact")"
+          echo "Artifact SHA-256: $(sha256sum "$artifact" | cut -d' ' -f1)"
+
+          mvn --batch-mode mule:deploy \
+            -Dmule.artifact="$artifact" \
+            -DmuleDeploy \
+            -Denv.ANYPOINT_ORG_ID="$ANYPOINT_ORG_ID" \
+            -Danypoint.client.id="$ANYPOINT_CLIENT_ID" \
+            -Danypoint.client.secret="$ANYPOINT_CLIENT_SECRET" \
+            -Dcloudhub.application.name="${CLOUDHUB_APPLICATION_NAME}-west" \
+            -Dcloudhub.environment="$CLOUDHUB_ENVIRONMENT" \
+            -Dcloudhub.target="$CLOUDHUB_TARGET" \
+            -Dcloudhub.replicas="$CLOUDHUB_REPLICAS" \
+            -Dcloudhub.vcores="$CLOUDHUB_VCORES" \
+            -Denv.REGION_NAME="$REGION_NAME"
+
+  deploy-westb:
+    strategy:
+      fail-fast: false
+      matrix:
+        environment: ${{ fromJSON(github.event_name == 'push' && '["dev"]' || inputs.environment == 'all' && '["dev","qa","sandbox","prod"]' || format('["{0}"]', inputs.environment)) }}
+    name: 🌎 Deploy — WESTB
+    runs-on: ubuntu-latest
+    needs: artifact-check
+    environment: ${{ matrix.environment }}
+    steps:
+      - name: Checkout deployment descriptor
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+
+      - name: Download immutable artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: mule-application-${{ github.sha }}
+          path: artifact
+
+      - name: Deploy WESTB
+        env:
+          ANYPOINT_CLIENT_ID: ${{ secrets.ANYPOINT_CLIENT_ID }}
+          ANYPOINT_CLIENT_SECRET: ${{ secrets.ANYPOINT_CLIENT_SECRET }}
+          ANYPOINT_ORG_ID: ${{ secrets.ANYPOINT_ORG_ID }}
+          DB_SF_NAME: ${{ secrets.DB_SF_NAME }}
+          DB_SF_WAREHOUSE: ${{ secrets.DB_SF_WAREHOUSE }}
+          DB_SF_DATABASE: ${{ secrets.DB_SF_DATABASE }}
+          DB_SF_SCHEMA: ${{ secrets.DB_SF_SCHEMA }}
+          DB_SF_USER: ${{ secrets.DB_SF_USER }}
+          DB_SF_PASSWORD: ${{ secrets.DB_SF_PASSWORD }}
+          DB_SF_ROLE: ${{ secrets.DB_SF_ROLE }}
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          ULTRAMSG_TOKEN: ${{ secrets.ULTRAMSG_TOKEN }}
+          BUILD_SHA: ${{ github.sha }}
+          REGION_NAME: WESTB
+          CLOUDHUB_APPLICATION_NAME: ${{ secrets.CLOUDHUB_APPLICATION_NAME }}
+          CLOUDHUB_ENVIRONMENT: ${{ secrets.CLOUDHUB_ENVIRONMENT }}
+          CLOUDHUB_TARGET: ${{ secrets.CLOUDHUB_TARGET }}
+          CLOUDHUB_REPLICAS: ${{ secrets.CLOUDHUB_REPLICAS }}
+          CLOUDHUB_VCORES: ${{ secrets.CLOUDHUB_VCORES }}
+        run: |
+          set -euo pipefail
+          artifact=$(find artifact -maxdepth 1 -type f -name '*.jar' | head -n1)
+          test -n "$CLOUDHUB_TARGET"
+          test -s artifact/mule-artifact.sha256
+          (cd artifact && sha256sum -c mule-artifact.sha256)
+          echo "Deploying immutable artifact: $(basename "$artifact")"
+          echo "Artifact SHA-256: $(sha256sum "$artifact" | cut -d' ' -f1)"
+
+          mvn --batch-mode mule:deploy \
+            -Dmule.artifact="$artifact" \
+            -DmuleDeploy \
+            -Denv.ANYPOINT_ORG_ID="$ANYPOINT_ORG_ID" \
+            -Danypoint.client.id="$ANYPOINT_CLIENT_ID" \
+            -Danypoint.client.secret="$ANYPOINT_CLIENT_SECRET" \
+            -Dcloudhub.application.name="${CLOUDHUB_APPLICATION_NAME}-westb" \
+            -Dcloudhub.environment="$CLOUDHUB_ENVIRONMENT" \
+            -Dcloudhub.target="$CLOUDHUB_TARGET" \
+            -Dcloudhub.replicas="$CLOUDHUB_REPLICAS" \
+            -Dcloudhub.vcores="$CLOUDHUB_VCORES" \
+            -Denv.REGION_NAME="$REGION_NAME"
+
+  deploy-east:
+    strategy:
+      fail-fast: false
+      matrix:
+        environment: ${{ fromJSON(github.event_name == 'push' && '["dev"]' || inputs.environment == 'all' && '["dev","qa","sandbox","prod"]' || format('["{0}"]', inputs.environment)) }}
+    name: 🌎 Deploy — EAST
+    runs-on: ubuntu-latest
+    needs: artifact-check
+    environment: ${{ matrix.environment }}
+    steps:
+      - name: Checkout deployment descriptor
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+
+      - name: Download immutable artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: mule-application-${{ github.sha }}
+          path: artifact
+
+      - name: Deploy EAST
+        env:
+          ANYPOINT_CLIENT_ID: ${{ secrets.ANYPOINT_CLIENT_ID }}
+          ANYPOINT_CLIENT_SECRET: ${{ secrets.ANYPOINT_CLIENT_SECRET }}
+          ANYPOINT_ORG_ID: ${{ secrets.ANYPOINT_ORG_ID }}
+          DB_SF_NAME: ${{ secrets.DB_SF_NAME }}
+          DB_SF_WAREHOUSE: ${{ secrets.DB_SF_WAREHOUSE }}
+          DB_SF_DATABASE: ${{ secrets.DB_SF_DATABASE }}
+          DB_SF_SCHEMA: ${{ secrets.DB_SF_SCHEMA }}
+          DB_SF_USER: ${{ secrets.DB_SF_USER }}
+          DB_SF_PASSWORD: ${{ secrets.DB_SF_PASSWORD }}
+          DB_SF_ROLE: ${{ secrets.DB_SF_ROLE }}
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          ULTRAMSG_TOKEN: ${{ secrets.ULTRAMSG_TOKEN }}
+          BUILD_SHA: ${{ github.sha }}
+          REGION_NAME: EAST
+          CLOUDHUB_APPLICATION_NAME: ${{ secrets.CLOUDHUB_APPLICATION_NAME }}
+          CLOUDHUB_ENVIRONMENT: ${{ secrets.CLOUDHUB_ENVIRONMENT }}
+          CLOUDHUB_TARGET: ${{ secrets.CLOUDHUB_TARGET }}
+          CLOUDHUB_REPLICAS: ${{ secrets.CLOUDHUB_REPLICAS }}
+          CLOUDHUB_VCORES: ${{ secrets.CLOUDHUB_VCORES }}
+        run: |
+          set -euo pipefail
+          artifact=$(find artifact -maxdepth 1 -type f -name '*.jar' | head -n1)
+          test -n "$CLOUDHUB_TARGET"
+          test -s artifact/mule-artifact.sha256
+          (cd artifact && sha256sum -c mule-artifact.sha256)
+          echo "Deploying immutable artifact: $(basename "$artifact")"
+          echo "Artifact SHA-256: $(sha256sum "$artifact" | cut -d' ' -f1)"
+
+          mvn --batch-mode mule:deploy \
+            -Dmule.artifact="$artifact" \
+            -DmuleDeploy \
+            -Denv.ANYPOINT_ORG_ID="$ANYPOINT_ORG_ID" \
+            -Danypoint.client.id="$ANYPOINT_CLIENT_ID" \
+            -Danypoint.client.secret="$ANYPOINT_CLIENT_SECRET" \
+            -Dcloudhub.application.name="${CLOUDHUB_APPLICATION_NAME}-east" \
+            -Dcloudhub.environment="$CLOUDHUB_ENVIRONMENT" \
+            -Dcloudhub.target="$CLOUDHUB_TARGET" \
+            -Dcloudhub.replicas="$CLOUDHUB_REPLICAS" \
+            -Dcloudhub.vcores="$CLOUDHUB_VCORES" \
+            -Denv.REGION_NAME="$REGION_NAME"
+
+  smoke-test-regions:
+    name: 🩺 Post-Deployment Smoke Test — 3 Regions
+    runs-on: ubuntu-latest
+    needs:
+      - deploy-west
+      - deploy-westb
+      - deploy-east
+    if: always() && needs.deploy-west.result == 'success' && needs.deploy-westb.result == 'success' && needs.deploy-east.result == 'success'
+    steps:
+      - name: Verify live UI and API endpoints
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          regions=(
+            "WEST|https://birthday-wish-notification-api-west-615dv3.5sc6y6-3.usa-e2.cloudhub.io"
+            "WESTB|https://birthday-wish-notification-api-westb-615dv3.5sc6y6-3.usa-e2.cloudhub.io"
+            "EAST|https://birthday-wish-notification-api-east-615dv3.5sc6y6-3.usa-e2.cloudhub.io"
+          )
+
+          smoke() {
+            local region="$1"
+            local base="$2"
+            local path="$3"
+            local url="${base}${path}"
+            echo "[$region] GET $url"
+            for attempt in {1..12}; do
+              code="$(curl --silent --show-error --location --connect-timeout 5 --max-time 45 --retry 0 -o /dev/null -w "%{http_code}" "$url" || true)"
+              if [ "$code" = "200" ]; then
+                echo "[$region] PASS $path (HTTP 200)"
+                return 0
+              fi
+              echo "[$region] attempt $attempt/12 failed: HTTP $code"
+              sleep 10
+            done
+            return 1
+          }
+          optional_smoke() {
+            local region="$1"
+            local base="$2"
+            local path="$3"
+            if smoke "$region" "$base" "$path"; then
+              echo "[$region] PASS optional $path"
+            else
+              echo "::warning::[$region] Optional diagnostic endpoint is unavailable: $path"
+            fi
+          }
+          failed=0
+          for entry in "${regions[@]}"; do
+            IFS="|" read -r region base <<< "$entry"
+            # Critical old-UI data contract.
+            smoke "$region" "$base" "/api/dashboard" || failed=1
+            smoke "$region" "$base" "/api/customers?page=1&limit=1" || failed=1
+            # Diagnostics are reported without blocking the data-serving deployment.
+            optional_smoke "$region" "$base" "/api/runtime-info"
+            optional_smoke "$region" "$base" "/api/health"
+            optional_smoke "$region" "$base" "/api/health/dependencies"
+            optional_smoke "$region" "$base" "/api/outbox"
+            # Root is not part of the UI data contract.
+            if smoke "$region" "$base" "/"; then
+              echo "[$region] PASS /"
+            else
+              echo "::warning::[$region] Root path returned no HTTP 200; API data routes are the deployment gate."
+            fi
+          done
+          if [ "$failed" -ne 0 ]; then
+            echo "::error::One or more regions failed the critical UI data smoke tests (/api/dashboard or /api/customers)."
+            exit 1
+          fi
+          echo "All three regions passed critical UI data smoke tests."
+  deployment-summary:
+    name: 📊 Deployment Summary
+    runs-on: ubuntu-latest
+    needs:
+      - permission-check
+      - validate-config
+      - build-artifact
+      - artifact-check
+      - deploy-west
+      - deploy-westb
+      - deploy-east
+      - smoke-test-regions
+    if: always()
+    steps:
+      - name: Publish deployment graph and status
+        run: |
+          {
+            echo "## 🚀 Multi-Region Deployment"
+            echo ""
+            echo "| Deployment selection | ${{ inputs.environment }} |"
+            echo ""
+            echo "| Stage | Status |"
+            echo "|---|---|"
+            echo "| 🔐 User permission | ${{ needs.permission-check.result }} |"
+            echo "| 🧩 Configuration validation | ${{ needs.validate-config.result }} |"
+            echo "| 📦 Build artifact | ${{ needs.build-artifact.result }} |"
+            echo "| 🧪 Artifact validation | ${{ needs.artifact-check.result }} |"
+            echo "| 🌎 WEST | ${{ needs.deploy-west.result }} |"
+            echo "| 🌎 WESTB | ${{ needs.deploy-westb.result }} |"
+            echo "| 🌎 EAST | ${{ needs.deploy-east.result }} |"
+            echo "| 🩺 Regional smoke tests | ${{ needs.smoke-test-regions.result }} |"
+            echo ""
+            echo "### Pipeline flow"
+            echo ""
+            echo 'Permission Check → Configuration Validation → Build → Artifact Check → **WEST**'
+            echo ""
+            echo '                                                             ↘ **WESTB**'
+            echo ""
+            echo '                                                             ↘ **EAST**'
+            echo ""
+            echo "The three regional deployments consume the same immutable JAR produced by the build."
+          } >> "$GITHUB_STEP_SUMMARY"
+ | head -n1 || true)"
+            if [ -n "$mule_artifact_json_path" ]; then
+              echo "mule_artifact_json_path=${mule_artifact_json_path}"
+              echo "mule_artifact_json_sha256=$(unzip -p "$artifact" "$mule_artifact_json_path" | sha256sum | cut -d' ' -f1)"
+            else
+              echo "mule_artifact_json_path=not-packaged"
+              echo "mule_artifact_json_sha256=not-packaged"
+            fi
             echo "main_mule_xml_path=${mule_xml}"
             echo "main_mule_xml_sha256=$(sha256sum target/packaged-mule.xml | cut -d' ' -f1)"
             echo "cloud_yaml_sha256=$(unzip -p "$artifact" config/cloud.yaml | sha256sum | cut -d' ' -f1)"
