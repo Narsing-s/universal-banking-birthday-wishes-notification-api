@@ -162,42 +162,63 @@ var customers = []
 	</flow>
 
 	<flow name="birthday-customers-api" doc:id="birthday-customers-api">
-		<http:listener config-ref="Dashboard_HTTP_Listener" path="/api/customers" allowedMethods="GET,OPTIONS" doc:name="Customers API" >
-		<http:response>
-		    <http:headers><![CDATA[#[{
-		      "Access-Control-Allow-Origin": "*",
-		      "Access-Control-Allow-Methods": "GET,OPTIONS",
-		      "Access-Control-Allow-Headers": "Content-Type,Authorization"
-		    }]]]></http:headers>
-		  </http:response>
-	</http:listener>
-		<snowflake:select doc:name="Load all active customers" config-ref="Snowflake_Config">
+		<http:listener config-ref="Dashboard_HTTP_Listener" path="/api/customers" allowedMethods="GET,OPTIONS" doc:name="Customers API">
+			<http:response>
+				<http:headers><![CDATA[#[{
+					"Access-Control-Allow-Origin": "*",
+					"Access-Control-Allow-Methods": "GET,OPTIONS",
+					"Access-Control-Allow-Headers": "Content-Type,Authorization"
+				}]]]></http:headers>
+			</http:response>
+		</http:listener>
+		<set-variable variableName="page" value="#[((attributes.queryParams.page default '1') as Number) max 1]" />
+		<set-variable variableName="pageSize" value="#[((attributes.queryParams.limit default '100') as Number) max 1 min 100]" />
+		<set-variable variableName="search" value="#[attributes.queryParams.search default '']" />
+		<snowflake:select doc:name="Load customer page" config-ref="Snowflake_Config">
 			<snowflake:sql><![CDATA[
 SELECT
-  FULLNAME,
-  ACCOUNTNUMBER,
-  DATEOFBIRTH,
-  EMAIL,
-  BANKNAME,
-  BIRTHDAY_WISH_SENT,
-  BIRTHDAY_WISH_SENT_DATE,
-  STATUS
+  FULLNAME, ACCOUNTNUMBER, DATEOFBIRTH, EMAIL, BANKNAME,
+  BIRTHDAY_WISH_SENT, BIRTHDAY_WISH_SENT_DATE, STATUS
 FROM BANK_CUSTOMER_DATA
 WHERE STATUS = 'ACTIVE'
+  AND (:search = '' OR UPPER(FULLNAME) LIKE '%' || UPPER(:search) || '%'
+       OR UPPER(EMAIL) LIKE '%' || UPPER(:search) || '%'
+       OR UPPER(ACCOUNTNUMBER) LIKE '%' || UPPER(:search) || '%')
 ORDER BY FULLNAME
-LIMIT 1000
+LIMIT :pageSize OFFSET ((:page - 1) * :pageSize)
 ]]></snowflake:sql>
+			<snowflake:input-parameters><![CDATA[#[{
+				search: vars.search,
+				page: vars.page,
+				pageSize: vars.pageSize
+			}]]]></snowflake:input-parameters>
 		</snowflake:select>
-		<ee:transform doc:name="Build live customer list">
+		<set-variable variableName="customerPage" value="#[payload]" />
+		<snowflake:select doc:name="Count customers" config-ref="Snowflake_Config">
+			<snowflake:sql><![CDATA[
+SELECT COUNT(*) AS TOTAL
+FROM BANK_CUSTOMER_DATA
+WHERE STATUS = 'ACTIVE'
+  AND (:search = '' OR UPPER(FULLNAME) LIKE '%' || UPPER(:search) || '%'
+       OR UPPER(EMAIL) LIKE '%' || UPPER(:search) || '%'
+       OR UPPER(ACCOUNTNUMBER) LIKE '%' || UPPER(:search) || '%')
+]]></snowflake:sql>
+			<snowflake:input-parameters><![CDATA[#[{search: vars.search}]]]></snowflake:input-parameters>
+		</snowflake:select>
+		<ee:transform doc:name="Build paginated customer response">
 			<ee:message>
 				<ee:set-payload><![CDATA[%dw 2.0
 output application/json
+var total = (payload[0].TOTAL default 0) as Number
 ---
 {
   source: "Snowflake",
   generatedAt: now(),
-  count: sizeOf(payload),
-  customers: payload map (c) -> {
+  page: vars.page,
+  pageSize: vars.pageSize,
+  total: total,
+  totalPages: if(vars.pageSize > 0) ceil(total / vars.pageSize) else 0,
+  customers: (vars.customerPage default []) map (c) -> {
     name: c.FULLNAME,
     account: c.ACCOUNTNUMBER,
     birthday: c.DATEOFBIRTH,
@@ -211,7 +232,6 @@ output application/json
 			</ee:message>
 		</ee:transform>
 	</flow>
-
 	<flow name="universal-banking-birthday-wishes-notification-api" doc:id="f1452827-76ca-4d4f-9234-79ae25f4b2f3">
         <scheduler doc:name="Birthday Outbox Scheduler"><scheduling-strategy><cron expression="0 0 9 * * ?" timeZone="Asia/Kolkata"/></scheduling-strategy></scheduler>
         <logger level="INFO" doc:name="Create birthday outbox" message='#["BIRTHDAY OUTBOX | region=" ++ (p("region.name") default "unknown") ++ " | sharedSnowflake=true"]'/>
