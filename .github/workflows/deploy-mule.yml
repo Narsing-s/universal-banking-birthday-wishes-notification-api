@@ -53,21 +53,25 @@ jobs:
           esac
 
   validate-config:
-    environment: ${{ inputs.environment == 'all' && 'dev' || inputs.environment }}
     name: 🧩 Validate CI/CD Configuration
     runs-on: ubuntu-latest
     needs: permission-check
+    strategy:
+      fail-fast: false
+      matrix:
+        environment: ${{ fromJSON(inputs.environment == 'all' && '["dev","qa","sandbox","prod"]' || format('["{0}"]', inputs.environment)) }}
+    environment: ${{ matrix.environment }}
     steps:
-      - name: Validate required deployment secrets
+      - name: Validate environment-specific deployment configuration
         env:
           ANYPOINT_ORG_ID: ${{ secrets.ANYPOINT_ORG_ID }}
           ANYPOINT_CLIENT_ID: ${{ secrets.ANYPOINT_CLIENT_ID }}
           ANYPOINT_CLIENT_SECRET: ${{ secrets.ANYPOINT_CLIENT_SECRET }}
           CLOUDHUB_APPLICATION_NAME: ${{ secrets.CLOUDHUB_APPLICATION_NAME }}
           CLOUDHUB_ENVIRONMENT: ${{ secrets.CLOUDHUB_ENVIRONMENT }}
-          CLOUDHUB_TARGET_WEST: ${{ secrets.CLOUDHUB_TARGET_WEST || secrets.CLOUDHUB_TARGET }}
-          CLOUDHUB_TARGET_WESTB: ${{ secrets.CLOUDHUB_TARGET_WESTB || secrets.CLOUDHUB_TARGET }}
-          CLOUDHUB_TARGET_EAST: ${{ secrets.CLOUDHUB_TARGET_EAST || secrets.CLOUDHUB_TARGET }}
+          CLOUDHUB_TARGET_WEST: ${{ secrets.CLOUDHUB_TARGET_WEST }}
+          CLOUDHUB_TARGET_WESTB: ${{ secrets.CLOUDHUB_TARGET_WESTB }}
+          CLOUDHUB_TARGET_EAST: ${{ secrets.CLOUDHUB_TARGET_EAST }}
           CLOUDHUB_REPLICAS: ${{ secrets.CLOUDHUB_REPLICAS }}
           CLOUDHUB_VCORES: ${{ secrets.CLOUDHUB_VCORES }}
           DB_SF_NAME: ${{ secrets.DB_SF_NAME }}
@@ -81,45 +85,25 @@ jobs:
           SMTP_PORT: ${{ secrets.SMTP_PORT }}
           SMTP_USER: ${{ secrets.SMTP_USER }}
           SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
-          ULTRAMSG_TOKEN: ${{ secrets.ULTRAMSG_TOKEN }}
         run: |
           set -euo pipefail
           failed=0
-
-          for name in \
-            ANYPOINT_ORG_ID \
-            ANYPOINT_CLIENT_ID \
-            ANYPOINT_CLIENT_SECRET \
-            CLOUDHUB_APPLICATION_NAME \
-            CLOUDHUB_ENVIRONMENT \
-            CLOUDHUB_TARGET_WEST \
-            CLOUDHUB_TARGET_WESTB \
-            CLOUDHUB_TARGET_EAST \
-            CLOUDHUB_REPLICAS \
-            CLOUDHUB_VCORES \
-            DB_SF_NAME \
-            DB_SF_WAREHOUSE \
-            DB_SF_DATABASE \
-            DB_SF_SCHEMA \
-            DB_SF_USER \
-            DB_SF_PASSWORD \
-            DB_SF_ROLE \
-            SMTP_HOST \
-            SMTP_PORT \
-            SMTP_USER \
-            SMTP_PASSWORD
-          do
+          for name in ANYPOINT_ORG_ID ANYPOINT_CLIENT_ID ANYPOINT_CLIENT_SECRET CLOUDHUB_APPLICATION_NAME CLOUDHUB_ENVIRONMENT CLOUDHUB_TARGET_WEST CLOUDHUB_TARGET_WESTB CLOUDHUB_TARGET_EAST CLOUDHUB_REPLICAS CLOUDHUB_VCORES DB_SF_NAME DB_SF_WAREHOUSE DB_SF_DATABASE DB_SF_SCHEMA DB_SF_USER DB_SF_PASSWORD DB_SF_ROLE SMTP_HOST SMTP_PORT SMTP_USER SMTP_PASSWORD; do
             if [ -z "${!name:-}" ]; then
-              echo "::error::Missing required GitHub secret: ${name}"
+              echo "::error::[${{ matrix.environment }}] Missing required GitHub Environment secret: ${name}"
               failed=1
-            else
-              echo "${name}: configured"
             fi
           done
-
           if [ "${failed}" -ne 0 ]; then
+            echo "::error::[${{ matrix.environment }}] deployment configuration is incomplete. Deployment refused."
             exit 1
           fi
+          echo "Environment [${{ matrix.environment }}] is isolated."
+          echo "Application: ${CLOUDHUB_APPLICATION_NAME}"
+          echo "CloudHub environment: ${CLOUDHUB_ENVIRONMENT}"
+          echo "WEST target: ${CLOUDHUB_TARGET_WEST}"
+          echo "WESTB target: ${CLOUDHUB_TARGET_WESTB}"
+          echo "EAST target: ${CLOUDHUB_TARGET_EAST}"
 
   build-artifact:
     environment: ${{ inputs.environment == 'all' && 'dev' || inputs.environment }}
