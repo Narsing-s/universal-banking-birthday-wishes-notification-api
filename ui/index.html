@@ -63,7 +63,7 @@ main{padding:24px 20px 50px}.toolbar{display:flex;justify-content:space-between;
   const HEALTH_URL=API_BASE+"/health";
   const TEST_RUN_URL=API_BASE+"/test/birthday-run";
   const OUTBOX_URL=API_BASE+"/outbox";
-  const data={metrics:{},customers:[],sentByDay:[],monthlyBirthdays:[]};
+  const data={metrics:{},customers:[],customerTotal:0,sentByDay:[],monthlyBirthdays:[]};
 
   function $(id){return document.getElementById(id);}
   function money(v){return Number(v||0).toLocaleString("en-IN");}
@@ -179,7 +179,7 @@ main{padding:24px 20px 50px}.toolbar{display:flex;justify-content:space-between;
       const when=d===0?"Today":d===1?"Tomorrow":dateText(c.birthday);
       return '<div style="padding:8px 0;border-bottom:1px solid var(--line)"><b>'+escapeHtml(c.name)+'</b> · '+escapeHtml(c.bankName||"—")+'<br><small>'+when+' · '+escapeHtml(c.email||"—")+' · <span class="status '+(c.sent?"sent":"pending")+'">'+(c.sent?"Wish sent":"Pending email")+'</span></small></div>';
     }).join(""):"<div style="color:var(--muted);font-size:12px">No birthday customers found for today or tomorrow.</div>";
-    window.renderTable();
+    window.renderTable();\n    if(data.customerTotal>data.customers.length){$("rows").insertAdjacentHTML("beforebegin",'<div class="notice" style="margin-bottom:10px">Showing the first 500 customers for fast initial rendering. Search/pagination API can be added without downloading the full dataset.</div>');}
   }
 
   async function fetchJson(url){
@@ -199,7 +199,7 @@ main{padding:24px 20px 50px}.toolbar{display:flex;justify-content:space-between;
       $("runtimeInfo").textContent="Runtime: "+(r.runtime||"Mule")+" · "+(r.environment||"unknown")+" · "+(r.buildSha||"unknown").slice(0,12);
       return r;
     }catch(e){
-      $("runtimeInfo").textContent="Runtime: metadata unavailable (optional endpoint);
+      $("runtimeInfo").textContent="Runtime: metadata unavailable (optional endpoint)";
       return null;
     }
   }
@@ -261,7 +261,7 @@ main{padding:24px 20px 50px}.toolbar{display:flex;justify-content:space-between;
       data.metrics=dashboard.metrics||{};
       data.sentByDay=Array.isArray(dashboard.sentByDay)?dashboard.sentByDay:[];
       data.monthlyBirthdays=Array.isArray(dashboard.monthlyBirthdays)?dashboard.monthlyBirthdays:[];
-      if(Array.isArray(dashboard.customers))data.customers=dashboard.customers;
+      if(Array.isArray(dashboard.customers)){ data.customers=dashboard.customers.slice(0,500); data.customerTotal=dashboard.customers.length; }
       dashboardOk=true;
       $("dashStatus").textContent="● Live"; $("dashStatus").style.color="var(--green)";
     }catch(e){
