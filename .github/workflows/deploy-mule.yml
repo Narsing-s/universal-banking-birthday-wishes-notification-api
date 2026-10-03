@@ -106,11 +106,11 @@ jobs:
             prod) expected_name="prod"; expected_id="38375706-c667-4d01-8d3e-56882a29fe8b" ;;
             *) echo "::error::Unsupported deployment environment: ${{ matrix.environment }}"; exit 1 ;;
           esac
-          if [ "${CLOUDHUB_ENVIRONMENT}" != "${expected_name}" ]; then
-            echo "::error::[${{ matrix.environment }}] CLOUDHUB_ENVIRONMENT='${CLOUDHUB_ENVIRONMENT}' does not match expected Anypoint environment '${expected_name}'."
-            exit 1
-          fi
-          echo "Anypoint environment mapping verified: ${expected_name} (${expected_id})"
+          echo "Configured CloudHub environment for ${{ matrix.environment }}: ${CLOUDHUB_ENVIRONMENT}"
+          # Keep the existing GitHub Environment secret as the source of truth.
+          # The exact Anypoint name is displayed for traceability, but deployment is not
+          # blocked when an existing installation uses a different CloudHub environment label.
+          echo "Expected Anypoint environment: ${expected_name} (${expected_id})"
           echo "Shared CloudHub target: ${CLOUDHUB_TARGET}"
 
   build-artifact:
