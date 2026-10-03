@@ -1,0 +1,399 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Universal Banking Birthday Notification Center</title>
+<style>
+:root{--bg:#f4f7fb;--card:#fff;--text:#172033;--muted:#697386;--line:#e6eaf0;--accent:#4f46e5;--green:#0f9d68;--amber:#d88900;--red:#d14343;--shadow:0 10px 28px rgba(23,32,51,.07)}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+header{background:linear-gradient(135deg,#111827,#3730a3);color:white;padding:26px 20px}.wrap{max-width:1200px;margin:auto}.top{display:flex;justify-content:space-between;gap:20px;align-items:center}.eyebrow{font-size:12px;letter-spacing:.12em;text-transform:uppercase;opacity:.7}.top h1{margin:7px 0 4px;font-size:30px}.top p{margin:0;color:#d9def5}.pill{border:1px solid #ffffff33;background:#ffffff14;padding:8px 12px;border-radius:999px;font-size:12px}
+main{padding:24px 20px 50px}.toolbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;gap:12px}.toolbar small{color:var(--muted)}button{border:0;border-radius:10px;padding:10px 14px;background:var(--accent);color:white;font-weight:650;cursor:pointer}button.secondary{background:white;color:var(--text);border:1px solid var(--line)}
+.metrics{display:grid;grid-template-columns:repeat(6,1fr);gap:14px}.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px;box-shadow:var(--shadow)}.metric{font-size:27px;font-weight:800}.label{font-size:12px;color:var(--muted);margin-top:5px}.delta{font-size:12px;margin-top:12px;color:var(--green)}
+.grid2{display:grid;grid-template-columns:1.35fr .85fr;gap:16px;margin-top:16px}.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-top:16px}.card h2{font-size:17px;margin:0 0 15px}.chart{height:220px;display:flex;align-items:end;gap:7px;padding:12px 4px 4px;border-bottom:1px solid var(--line)}.bar{flex:1;min-width:5px;background:#6366f1;border-radius:7px 7px 2px 2px;position:relative}.bar span{position:absolute;bottom:-22px;width:100%;text-align:center;font-size:9px;color:var(--muted)}.legend{display:flex;gap:18px;font-size:12px;color:var(--muted);margin-top:16px}.donut{width:170px;height:170px;border-radius:50%;margin:8px auto;background:conic-gradient(#0f9d68 0 0%,#e7ad42 0 100%);display:grid;place-items:center}.donut:after{content:"";width:105px;height:105px;background:white;border-radius:50%;display:grid;place-items:center}.center{text-align:center}.tablewrap{overflow:auto}.filters{display:flex;gap:8px;margin-bottom:12px}.filters input,.filters select{padding:10px;border:1px solid var(--line);border-radius:9px;background:white;outline:none}table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;padding:12px 9px;border-bottom:1px solid var(--line);white-space:nowrap}th{font-size:11px;text-transform:uppercase;color:var(--muted)}.status{padding:5px 8px;border-radius:999px;font-size:11px;font-weight:700}.sent{background:#e8f7f0;color:#087443}.pending{background:#fff4dc;color:#986300} .outboxError{background:#fff0f0;color:#9b2020}.error{display:none;margin-bottom:16px;padding:13px 15px;border-radius:12px;background:#fff0f0;border:1px solid #efb0b0;color:#9b2020;font-size:13px}.notice{margin-top:16px;padding:13px 15px;border-radius:12px;background:#eef7ff;border:1px solid #b9d9f5;color:#214d70;font-size:12px;line-height:1.5}
+@media(max-width:1100px){.metrics{grid-template-columns:repeat(3,1fr)}}@media(max-width:1000px){.grid2,.grid3{grid-template-columns:1fr}}@media(max-width:620px){.metrics{grid-template-columns:1fr 1fr}.top{align-items:flex-start}.pill{display:none}.filters{flex-wrap:wrap}}
+</style>
+</head>
+<body>
+<header><div class="wrap"><div class="top"><div><div class="eyebrow">MuleSoft • Snowflake • SMTP</div><h1>Universal Banking Birthday Notification Center</h1><p>Live Snowflake customers • scheduled birthday detection • email delivery tracking</p></div><div class="pill" id="apiStatus">CONNECTING API…</div></div></div></header>
+<main class="wrap">
+<div id="error" class="error"></div>
+<div class="toolbar">
+  <div>
+    <small id="updated">Loading live data…</small><br>
+    <small id="runtimeInfo" style="color:var(--muted)">Runtime: checking…</small>
+  </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap">
+    <button class="secondary" id="testRunBtn" type="button">▶ Run birthday check</button>
+    <button class="secondary" id="healthBtn" type="button">♥ Check health</button>
+    <button class="secondary" id="refreshBtn" type="button">↻ Refresh</button>
+  </div>
+</div>
+<div id="actionMessage" class="notice" style="display:none;margin-top:-4px;margin-bottom:16px"></div>
+<section class="metrics">
+<div class="card"><div class="metric" id="totalCustomers">—</div><div class="label">Total customers</div><div class="delta">Active customers</div></div>
+<div class="card"><div class="metric" id="birthdaysToday">—</div><div class="label">Birthdays today</div><div class="delta">Active customers</div></div>
+<div class="card"><div class="metric" id="wishesSent">—</div><div class="label">Birthday wishes sent</div><div class="delta">Sent records</div></div>
+<div class="card"><div class="metric" id="sentRecent">—</div><div class="label">Sent recently</div><div class="delta">Last 30 days</div></div>
+<div class="card"><div class="metric" id="pending">—</div><div class="label">Pending</div><div class="delta">Not marked sent</div></div>
+<div class="card"><div class="metric" id="customers30">—</div><div class="label">Birthdays next 30 days</div><div class="delta">Upcoming window</div></div>
+</section>
+<section class="grid2">
+<div class="card"><h2>📈 Emails sent — last 30 days</h2><div class="chart" id="emailChart"></div><div class="notice" style="margin-top:22px"><b>Scheduler:</b> MuleSoft checks Snowflake, sends birthday email, and records the send timestamp for the current birthday year.</div></div>
+<div class="card center"><h2>✉️ Notification status</h2><div class="donut" id="donut"></div><div class="legend" style="justify-content:center"><span>Sent <b id="sentPct">—</b></span><span>Pending <b id="pendingPct">—</b></span></div></div>
+</section>
+<section class="grid3">
+<div class="card"><h2>🎂 Today & upcoming birthdays</h2><div id="todayList" style="min-height:40px">Loading…</div><div class="chart" id="birthdayChart"></div></div>
+<div class="card"><h2>📅 Monthly birthday volume</h2><div class="chart" id="monthChart"></div></div>
+<div class="card"><h2>⚙️ Integration status</h2><p>Scheduler <b style="color:var(--green)">● Configured</b></p><p>Snowflake <b id="snowStatus" style="color:var(--amber)">● Checking…</b></p><p>Dashboard API <b id="dashStatus" style="color:var(--amber)">● Checking…</b></p><p>Customers API <b id="customerStatus" style="color:var(--amber)">● Checking…</b></p><p>SMTP <b style="color:var(--green)">● Configured</b></p><p>Last refresh<br><b id="lastRefresh">—</b></p></div>
+</section>
+<section class="card" style="margin-top:16px"><h2>📨 Notification outbox — latest 100</h2><div class="tablewrap"><table><thead><tr><th>Notification</th><th>Customer</th><th>Type</th><th>Status</th><th>Attempts</th><th>Created</th><th>Sent</th><th>Error</th></tr></thead><tbody id="outboxRows"><tr><td colspan="8">Loading…</td></tr></tbody></table></div></section>
+<section class="card" style="margin-top:16px"><h2>👥 All active customers from Snowflake</h2><div class="filters"><input id="search" placeholder="Search customer..." autocomplete="off"><select id="range"><option value="all">All active customers</option><option value="today">Birthday today</option><option value="30">Birthdays in next 30 days</option><option value="7">Birthdays in next 7 days</option><option value="sent">Birthday wish already sent</option><option value="pending">Birthday wish pending</option></select></div><div id="customerPager" style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin:10px 0;font-size:12px;color:var(--muted)"><span id="customerPageInfo">Loading customers…</span><span style="display:flex;gap:8px"><button class="secondary" id="prevPage" type="button">← Previous</button><button class="secondary" id="nextPage" type="button">Next →</button></span></div><div class="tablewrap"><table><thead><tr><th>Customer</th><th>Bank</th><th>Account</th><th>Birthday</th><th>Days left</th><th>Email</th><th>Wish status</th><th>Sent date</th></tr></thead><tbody id="rows"><tr><td colspan="8">Loading…</td></tr></tbody></table></div></section>
+<div class="notice"><b>Live data:</b> Customer records and metrics are loaded from the MuleSoft APIs. No demo customer records are embedded in this page.</div>
+</main>
+<script>
+"use strict";
+(function(){
+  const params=new URLSearchParams(window.location.search);
+
+  const DEFAULT_API_BASES=[
+    "https://birthday-wish-notification-api-east-615dv3.5sc6y6-3.usa-e2.cloudhub.io/api",
+    "https://birthday-wish-notification-api-west-615dv3.5sc6y6-3.usa-e2.cloudhub.io/api",
+    "https://birthday-wish-notification-api-westb-615dv3.5sc6y6-3.usa-e2.cloudhub.io/api"
+  ];
+  const configuredApi=(params.get("apiBase")||"").replace(/\/$/,"");
+  const rememberedApi=(window.localStorage.getItem("birthdayApiBase")||"").replace(/\/$/,"");
+  const API_BASES=configuredApi?[configuredApi]:Array.from(new Set([rememberedApi,...DEFAULT_API_BASES].filter(Boolean)));
+  let API_BASE=API_BASES[0];
+  let ACTIVE_REGION="UNKNOWN";
+  const API_URL=()=>API_BASE+"/dashboard";
+  const CUSTOMERS_URL=()=>API_BASE+"/customers";
+  const RUNTIME_URL=()=>API_BASE+"/runtime-info";
+  const HEALTH_URL=()=>API_BASE+"/health/dependencies";
+  const TEST_RUN_URL=()=>API_BASE+"/test/birthday-run";
+  const OUTBOX_URL=()=>API_BASE+"/outbox";
+  const data={metrics:{},customers:[],customerTotal:0,customerPage:1,customerPageSize:100,customerTotalPages:0,sentByDay:[],monthlyBirthdays:[]};
+
+  function $(id){return document.getElementById(id);}
+  function money(v){return Number(v||0).toLocaleString("en-IN");}
+  function maskAccount(v){const s=String(v==null?"":v);return s.length>4?"****"+s.slice(-4):s;}
+  function escapeHtml(v){return String(v==null?"":v).replace(/[&<>"']/g,function(m){return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[m];});}
+  function parseDate(v){if(!v)return null;const d=new Date(v);return Number.isNaN(d.getTime())?null:d;}
+  function normalizeCustomer(c){
+    c=c&&typeof c==="object"?c:{};
+    return {
+      name:c.name??c.FULLNAME??c.fullName??"",
+      birthday:c.birthday??c.DATEOFBIRTH??c.dateOfBirth??"",
+      email:c.email??c.EMAIL??"",
+      bankName:c.bankName??c.BANKNAME??"",
+      account:c.account??c.ACCOUNTNUMBER??"",
+      sent:Boolean(c.sent??c.BIRTHDAY_WISH_SENT??false),
+      sentDate:c.sentDate??c.BIRTHDAY_WISH_SENT_DATE??null
+    };
+  }
+  function renderOutbox(list){
+    const rows=Array.isArray(list)?list:[];
+    $("outboxRows").innerHTML=rows.length?rows.map(function(n){
+      const status=String(n.status||"UNKNOWN").toUpperCase();
+      const cls=status==="SENT"?"sent":status==="FAILED"||status==="ERROR"?"outboxError":"pending";
+      const err=n.errorMessage||"";
+      return '<tr><td><b>'+escapeHtml(n.notificationId||"—")+'</b></td><td>'+escapeHtml(n.name||n.customerId||"—")+'</td><td>'+escapeHtml(n.notificationType||"—")+'</td><td><span class="status '+cls+'">'+escapeHtml(status)+'</span></td><td>'+money(n.attemptCount||0)+'</td><td>'+dateText(n.createdAt)+'</td><td>'+dateText(n.sentAt)+'</td><td title="'+escapeHtml(err)+'">'+escapeHtml(err?err.slice(0,90):"—")+'</td></tr>';
+    }).join(""):'<tr><td colspan="8">No notification outbox records found.</td></tr>';
+  }
+
+  function normalizeCustomers(payload){
+    let list=[];
+
+    if(Array.isArray(payload)) list=payload;
+    else if(payload&&Array.isArray(payload.customers)) list=payload.customers;
+    else if(payload&&Array.isArray(payload.data)) list=payload.data;
+    else if(payload&&typeof payload==="object") list=[payload];
+    return list.map(normalizeCustomer);
+  }
+  
+  function daysLeft(v){
+    const d=parseDate(v); if(!d)return 9999;
+    const now=new Date(); now.setHours(0,0,0,0);
+    d.setFullYear(now.getFullYear()); d.setHours(0,0,0,0);
+    if(d<now)d.setFullYear(now.getFullYear()+1);
+    return Math.ceil((d-now)/86400000);
+  }
+  function dateText(v){const d=parseDate(v);return d?d.toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"}):"—";}
+
+  window.renderTable=function(){
+    const q=($("search").value||"").toLowerCase().trim();
+    const range=$("range").value;
+    const rows=data.customers.filter(function(c){
+      const hay=[c.name,c.email,c.bankName,c.account].map(function(v){return String(v||"").toLowerCase();}).join(" ");
+      const d=daysLeft(c.birthday);
+      const matchesRange=range==="all"||(range==="today"&&d===0)||(range==="sent"&&c.sent)||(range==="pending"&&!c.sent)||((range==="7"||range==="30")&&d<=Number(range));
+      return hay.includes(q)&&matchesRange;
+    });
+    $("rows").innerHTML=rows.length?rows.map(function(c){
+      return '<tr><td><b>'+escapeHtml(c.name)+'</b></td><td>'+escapeHtml(c.bankName||"—")+'</td><td>'+maskAccount(c.account)+'</td><td>'+dateText(c.birthday)+'</td><td>'+(daysLeft(c.birthday)>365?"—":daysLeft(c.birthday))+'</td><td>'+escapeHtml(c.email||"—")+'</td><td><span class="status '+(c.sent?"sent":"pending")+'">'+(c.sent?"Sent":"Pending")+'</span></td><td>'+dateText(c.sentDate)+'</td></tr>';
+    }).join(""):'<tr><td colspan="8">No matching customers</td></tr>';
+  };
+
+  function bars(id,items,labelFn){
+    const el=$(id);
+    if(!items.length){el.innerHTML='<span style="color:var(--muted);font-size:12px">No data</span>';return;}
+    const max=Math.max(1,...items.map(function(x){return Number(x.count)||0;}));
+    el.innerHTML=items.map(function(x){
+      const h=Math.max(10,((Number(x.count)||0)/max)*175);
+      return '<div class="bar" style="height:'+h+'px"><span>'+escapeHtml(labelFn(x))+'</span></div>';
+    }).join("");
+  }
+
+  function render(){
+    const customers=data.customers||[];
+    const todayCount=customers.filter(function(c){return daysLeft(c.birthday)===0;}).length;
+    const sentCount=customers.filter(function(c){return c.sent;}).length;
+    const pendingCount=Math.max(0,customers.length-sentCount);
+    const next30Count=customers.filter(function(c){const d=daysLeft(c.birthday);return d>=0&&d<=30;}).length;
+    const sentRecentCount=customers.filter(function(c){
+      if(!c.sentDate)return false;
+      const d=parseDate(c.sentDate); if(!d)return false;
+      return (Date.now()-d.getTime())<=30*86400000;
+    }).length;
+
+    const m=data.metrics||{};
+    const totalMetric=Number(m.totalCustomers);
+    const todayMetric=Number(m.birthdaysToday);
+    const sentMetric=Number(m.birthdayWishesSent);
+    const recentMetric=Number(m.sentLast30Days);
+    const pendingMetric=Number(m.pending);
+    $("totalCustomers").textContent=money(Number.isFinite(totalMetric)?totalMetric:customers.length);
+    $("birthdaysToday").textContent=money(Number.isFinite(todayMetric)?todayMetric:todayCount);
+    $("wishesSent").textContent=money(Number.isFinite(sentMetric)?sentMetric:sentCount);
+    $("sentRecent").textContent=money(Number.isFinite(recentMetric)?recentMetric:sentRecentCount);
+    $("pending").textContent=money(Number.isFinite(pendingMetric)?pendingMetric:pendingCount);
+    $("customers30").textContent=money(next30Count);
+
+    const total=Number.isFinite(totalMetric)?totalMetric:customers.length;
+    const sentForPct=Number.isFinite(sentMetric)?sentMetric:sentCount;
+    const pendingForPct=Number.isFinite(pendingMetric)?pendingMetric:pendingCount;
+    const pct=total?Math.min(100,Math.round(sentForPct/total*100)):0;
+    $("sentPct").textContent=pct+"%";
+    $("pendingPct").textContent=(total?Math.min(100,Math.round(pendingForPct/total*100)):100)+"%";
+    $("donut").style.background="conic-gradient(#0f9d68 0 "+pct+"%,#e7ad42 "+pct+"% 100%)";
+
+    bars("emailChart",data.sentByDay||[],function(x){return String(x.date||"").slice(5);});
+    const upcoming=customers.slice().sort(function(a,b){return daysLeft(a.birthday)-daysLeft(b.birthday);}).slice(0,10).map(function(c){return {count:1,label:String(c.name||"Customer").slice(0,10)};});
+    bars("birthdayChart",upcoming,function(x){return x.label;});
+    bars("monthChart",(data.monthlyBirthdays||[]).map(function(x){return {count:x.count,label:x.month};}),function(x){return x.label;});
+
+    const todayTomorrow=customers.filter(function(c){const d=daysLeft(c.birthday);return d===0||d===1;}).sort(function(a,b){return daysLeft(a.birthday)-daysLeft(b.birthday);});
+    $("todayList").innerHTML=todayTomorrow.length?todayTomorrow.map(function(c){
+      const d=daysLeft(c.birthday);
+      const when=d===0?"Today":d===1?"Tomorrow":dateText(c.birthday);
+      return '<div style="padding:8px 0;border-bottom:1px solid var(--line)"><b>'+escapeHtml(c.name)+'</b> · '+escapeHtml(c.bankName||"—")+'<br><small>'+when+' · '+escapeHtml(c.email||"—")+' · <span class="status '+(c.sent?"sent":"pending")+'">'+(c.sent?"Wish sent":"Pending email")+'</span></small></div>';
+    }).join(""):"<div style="color:var(--muted);font-size:12px">No birthday customers found for today or tomorrow.</div>";
+    window.renderTable();
+  }
+
+  async function fetchJson(url,timeoutMs=8000){
+    const controller=new AbortController();
+    const timer=setTimeout(function(){controller.abort();},timeoutMs);
+    try{
+      const response=await fetch(url,{method:"GET",headers:{Accept:"application/json"},cache:"no-store",signal:controller.signal});
+      const text=await response.text();
+      if(!response.ok)throw new Error("HTTP "+response.status+(text?" — "+text.slice(0,180):""));
+      try{return JSON.parse(text);}catch(e){throw new Error("API returned non-JSON data");}
+    }finally{clearTimeout(timer);}
+  }
+
+  function regionName(url){
+    const host=new URL(url).hostname.toLowerCase();
+    if(host.includes("-east-"))return "EAST";
+    if(host.includes("-westb-"))return "WESTB";
+    if(host.includes("-west-"))return "WEST";
+    return "CUSTOM";
+  }
+
+  async function selectHealthyRegion(){
+    // Select a region using a real Snowflake-backed dashboard probe.
+    // /health only reports the Mule runtime itself and can therefore select
+    // a region whose database connection is broken.
+    const candidates=Array.from(new Set(API_BASES.filter(Boolean)));
+    const probes=candidates.map(function(base){
+      return fetchJson(base+"/dashboard",7000).then(function(d){
+        if(!d || typeof d!=="object" || !d.metrics) throw new Error("invalid dashboard response");
+        return {base:base,data:d};
+      });
+    });
+    try{
+      const winner=await Promise.any(probes);
+      API_BASE=winner.base;
+      ACTIVE_REGION=regionName(API_BASE);
+      window.localStorage.setItem("birthdayApiBase",API_BASE);
+      return winner.data;
+    }catch(e){
+      return null;
+    }
+  }
+
+  async function loadRuntime(){
+    try{
+      const r=await fetchJson(RUNTIME_URL());
+      $("runtimeInfo").textContent="Runtime: "+(r.runtime||"Mule")+" · "+(r.environment||"unknown")+" · "+(r.buildSha||"unknown").slice(0,12);
+      return r;
+    }catch(e){
+      $("runtimeInfo").textContent="Runtime: metadata unavailable (optional endpoint)";
+      return null;
+    }
+  }
+
+  async function checkHealth(){
+    try{
+      const h=await fetchJson(HEALTH_URL());
+      const ok=String(h.status||"").toUpperCase()==="UP" && String(h.snowflake||"").toUpperCase()==="UP";
+      $("snowStatus").textContent=ok?"● Live":"● Degraded";
+      $("snowStatus").style.color=ok?"var(--green)":"var(--red)";
+      showAction(ok?"Dependency health is UP — Snowflake is reachable.":"Dependency health returned a degraded state.",!ok);
+      return h;
+    }catch(e){
+      $("snowStatus").textContent="● Error";
+      $("snowStatus").style.color="var(--red)";
+      showAction("Dependency health endpoint is not available on this deployment.",false);
+      return null;
+    }
+  }
+
+  async function runBirthdayCheck(){
+    const button=$("testRunBtn");
+    button.disabled=true;
+    button.textContent="Running…";
+    try{
+      const response=await fetch(TEST_RUN_URL(),{method:"POST",headers:{Accept:"application/json","Content-Type":"application/json"},cache:"no-store"});
+      const text=await response.text();
+      if(!response.ok)throw new Error("HTTP "+response.status+(text?" — "+text.slice(0,180):""));
+      let result; try{result=JSON.parse(text);}catch(e){throw new Error("API returned non-JSON data");}
+      showAction("Birthday check completed: "+(result.candidatesFound??0)+" candidate(s) placed in the shared outbox. Refreshing live data…",false);
+      await loadDashboard();
+      setTimeout(loadDashboard,65000);
+    }catch(e){
+      showAction("Birthday check failed: "+e.message+". Confirm the deployed JAR contains the manual endpoint.",true);
+    }finally{
+      button.disabled=false;
+      button.textContent="▶ Run birthday check";
+    }
+  }
+
+  function showAction(message,isError){
+    const el=$("actionMessage");
+    el.textContent=message;
+    el.style.display="block";
+    el.style.background=isError?"#fff0f0":"#eef7ff";
+    el.style.borderColor=isError?"#efb0b0":"#b9d9f5";
+    el.style.color=isError?"#9b2020":"#214d70";
+  }
+
+  async function loadCustomersPage(page){
+    const q=encodeURIComponent(($("search").value||"").trim());
+    const url=CUSTOMERS_URL()+"?page="+page+"&limit="+data.customerPageSize+(q?"&search="+q:"");
+    const payload=await fetchJson(url);
+    const list=Array.isArray(payload.customers)?payload.customers:[];
+    data.customers=normalizeCustomers(list);
+    data.customerTotal=Number(payload.total||0);
+    data.customerPage=Number(payload.page||page);
+    data.customerTotalPages=Number(payload.totalPages||Math.ceil(data.customerTotal/data.customerPageSize));
+    $("customerStatus").textContent="● Live"; $("customerStatus").style.color="var(--green)";
+    $("snowStatus").textContent="● Live"; $("snowStatus").style.color="var(--green)";
+    $("customerPageInfo").textContent="Showing "+(data.customerTotal?((data.customerPage-1)*data.customerPageSize+1):0)+"–"+Math.min(data.customerPage*data.customerPageSize,data.customerTotal)+" of "+money(data.customerTotal)+" customers";
+    $("prevPage").disabled=data.customerPage<=1;
+    $("nextPage").disabled=data.customerPage>=data.customerTotalPages;
+    renderTable();
+  }
+
+  async function loadDashboard(){
+    $("error").style.display="none";
+    $("apiStatus").textContent="CONNECTING…";
+    $("updated").textContent="Finding a healthy regional API…";
+
+    const selected=await selectHealthyRegion();
+    if(!selected){
+      $("apiStatus").textContent="API OFFLINE";
+      $("apiStatus").style.background="#d1434333";
+      $("error").textContent="No regional MuleSoft API responded. Tried: "+API_BASES.map(regionName).join(", ");
+      $("error").style.display="block";
+      return;
+    }
+
+    $("apiStatus").textContent=ACTIVE_REGION+" API CONNECTED";
+    $("apiStatus").style.background="#0f9d6833";
+    $("updated").textContent="Loading live data from "+ACTIVE_REGION+"…";
+
+    // Reuse the successful dashboard probe instead of making the first
+    // Snowflake request twice. Then load the remaining datasets in parallel.
+    const dashboardPromise=Promise.resolve(selected);
+    const results=await Promise.allSettled([
+      dashboardPromise,
+      fetchJson(OUTBOX_URL(),10000),
+      loadCustomersPage(1)
+    ]);
+    const errors=[];
+    if(results[0].status==="fulfilled"){
+      const dashboard=results[0].value;
+      data.metrics=dashboard.metrics||{};
+      data.sentByDay=Array.isArray(dashboard.sentByDay)?dashboard.sentByDay:[];
+      data.monthlyBirthdays=Array.isArray(dashboard.monthlyBirthdays)?dashboard.monthlyBirthdays:[];
+      // Dashboard already contains a useful customer snapshot. Keep it as a
+      // fallback so the UI can still render data if the paginated endpoint is
+      // temporarily unavailable.
+      if(Array.isArray(dashboard.customers) && dashboard.customers.length && !data.customers.length){
+        data.customers=normalizeCustomers(dashboard.customers);
+        data.customerTotal=data.customers.length;
+        data.customerPage=1;
+        data.customerTotalPages=1;
+        $("customerStatus").textContent="● Live (dashboard snapshot)";
+        $("customerStatus").style.color="var(--green)";
+        $("customerPageInfo").textContent="Showing 1–"+data.customers.length+" of "+money(data.customers.length)+" customers";
+      }
+      $("dashStatus").textContent="● Live"; $("dashStatus").style.color="var(--green)";
+    }else{
+      errors.push("Dashboard: "+results[0].reason.message);
+      $("dashStatus").textContent="● Error"; $("dashStatus").style.color="var(--red)";
+    }
+    if(results[1].status==="fulfilled"){
+      const outbox=results[1].value;
+      renderOutbox(outbox&&Array.isArray(outbox.notifications)?outbox.notifications:[]);
+    }else errors.push("Outbox: "+results[1].reason.message);
+    if(results[2].status==="rejected"){
+      errors.push("Customers API: "+results[2].reason.message);
+      if(Array.isArray(data.customers) && data.customers.length){
+        $("customerStatus").textContent="● Live (dashboard snapshot)";
+        $("customerStatus").style.color="var(--green)";
+      }else{
+        $("customerStatus").textContent="● Error";
+        $("customerStatus").style.color="var(--red)";
+      }
+    }
+
+    render();
+    $("lastRefresh").textContent=new Date().toLocaleString("en-IN");
+    $("updated").textContent="Live data refreshed: "+new Date().toLocaleString("en-IN")+" · "+ACTIVE_REGION;
+    $("runtimeInfo").textContent="Regional API: "+ACTIVE_REGION;
+    if(errors.length){
+      $("error").textContent=errors.join(" | ")+" | Active region: "+ACTIVE_REGION;
+      $("error").style.display="block";
+    }
+  }
+
+  $("refreshBtn").addEventListener("click",async function(){
+    await loadRuntime();
+    await loadDashboard();
+  });
+  $("healthBtn").addEventListener("click",checkHealth);
+  $("testRunBtn").addEventListener("click",runBirthdayCheck);
+  $("search").addEventListener("input",function(){clearTimeout(window.customerSearchTimer);window.customerSearchTimer=setTimeout(function(){loadCustomersPage(1);},300);});
+  $("range").addEventListener("change",window.renderTable);
+  $("prevPage").addEventListener("click",function(){if(data.customerPage>1)loadCustomersPage(data.customerPage-1);});
+  $("nextPage").addEventListener("click",function(){if(data.customerPage<data.customerTotalPages)loadCustomersPage(data.customerPage+1);});
+  window.addEventListener("online",loadDashboard);
+  loadRuntime();
+  loadDashboard();
+  checkHealth();
+})();
+</script>
+</body>
+</html>
