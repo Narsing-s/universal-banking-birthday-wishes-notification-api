@@ -276,15 +276,22 @@ main{padding:24px 20px 50px}.toolbar{display:flex;justify-content:space-between;
       $("outboxRows").innerHTML='<tr><td colspan="8">Outbox API error: '+escapeHtml(e.message)+'</td></tr>';
     }
 
-    try{
-      const customerPayload=await fetchJson(CUSTOMERS_URL);
-      data.customers=normalizeCustomers(customerPayload);
+    if(Array.isArray(data.customers) && data.customers.length){
+      data.customers=normalizeCustomers(data.customers);
       customersOk=true;
       $("customerStatus").textContent="● Live"; $("customerStatus").style.color="var(--green)";
       $("snowStatus").textContent="● Live"; $("snowStatus").style.color="var(--green)";
-    }catch(e){
-      errors.push("Customers: "+e.message);
-      $("customerStatus").textContent="● Error"; $("customerStatus").style.color="var(--red)";
+    }else{
+      try{
+        const customerPayload=await fetchJson(CUSTOMERS_URL);
+        data.customers=normalizeCustomers(customerPayload);
+        customersOk=true;
+        $("customerStatus").textContent="● Live"; $("customerStatus").style.color="var(--green)";
+        $("snowStatus").textContent="● Live"; $("snowStatus").style.color="var(--green)";
+      }catch(e){
+        errors.push("Customers: "+e.message);
+        $("customerStatus").textContent="● Error"; $("customerStatus").style.color="var(--red)";
+      }
     }
 
     render();
