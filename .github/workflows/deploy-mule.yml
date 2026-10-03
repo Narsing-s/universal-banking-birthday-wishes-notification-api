@@ -459,7 +459,7 @@ jobs:
             -Dcloudhub.environment="$CLOUDHUB_ENVIRONMENT" \
             -Dcloudhub.target="$CLOUDHUB_TARGET" \
             -Dcloudhub.replicas="$CLOUDHUB_REPLICAS" \
-            -Dcloudhub.vcores="$CLOUDHUB_VCORES"
+            -Dcloudhub.vcores="$CLOUDHUB_VCORES" \
             -Denv.REGION_NAME="$REGION_NAME"
 
   deployment-summary:
