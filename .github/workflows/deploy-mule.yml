@@ -1,4 +1,4 @@
-name: Deploy Mule application to CloudHub 2.0
+name: Mule CI/CD - Permission, Artifact Validation & Multi-Region Deployment
 
 on:
   push:
@@ -8,11 +8,115 @@ on:
 
 permissions:
   contents: read
+  actions: read
+  metadata: read
+
+concurrency:
+  group: mule-cicd-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
-  deploy:
+  permission-check:
+    name: 🔐 User Permission Check
     runs-on: ubuntu-latest
+    steps:
+      - name: Verify workflow actor has deployment permission
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
 
+          actor="${{ github.actor }}"
+          permission=$(gh api \
+            "repos/${GITHUB_REPOSITORY}/collaborators/${actor}/permission" \
+            --jq '.permission')
+
+          echo "Actor: ${actor}"
+          echo "Repository permission: ${permission}"
+
+          case "${permission}" in
+            admin|maintain|push)
+              echo "Permission check passed."
+              ;;
+            *)
+              echo "::error::Deployment requires push, maintain, or admin repository permission."
+              exit 1
+              ;;
+          esac
+
+  validate-config:
+    name: 🧩 Validate CI/CD Configuration
+    runs-on: ubuntu-latest
+    needs: permission-check
+    steps:
+      - name: Validate required deployment secrets
+        env:
+          ANYPOINT_ORG_ID: ${{ secrets.ANYPOINT_ORG_ID }}
+          ANYPOINT_CLIENT_ID: ${{ secrets.ANYPOINT_CLIENT_ID }}
+          ANYPOINT_CLIENT_SECRET: ${{ secrets.ANYPOINT_CLIENT_SECRET }}
+          CLOUDHUB_APPLICATION_NAME: ${{ secrets.CLOUDHUB_APPLICATION_NAME }}
+          CLOUDHUB_ENVIRONMENT: ${{ secrets.CLOUDHUB_ENVIRONMENT }}
+          CLOUDHUB_TARGET_WEST: ${{ secrets.CLOUDHUB_TARGET_WEST }}
+          CLOUDHUB_TARGET_WESTB: ${{ secrets.CLOUDHUB_TARGET_WESTB }}
+          CLOUDHUB_TARGET_EAST: ${{ secrets.CLOUDHUB_TARGET_EAST }}
+          CLOUDHUB_REPLICAS: ${{ secrets.CLOUDHUB_REPLICAS }}
+          CLOUDHUB_VCORES: ${{ secrets.CLOUDHUB_VCORES }}
+          DB_SF_NAME: ${{ secrets.DB_SF_NAME }}
+          DB_SF_WAREHOUSE: ${{ secrets.DB_SF_WAREHOUSE }}
+          DB_SF_DATABASE: ${{ secrets.DB_SF_DATABASE }}
+          DB_SF_SCHEMA: ${{ secrets.DB_SF_SCHEMA }}
+          DB_SF_USER: ${{ secrets.DB_SF_USER }}
+          DB_SF_PASSWORD: ${{ secrets.DB_SF_PASSWORD }}
+          DB_SF_ROLE: ${{ secrets.DB_SF_ROLE }}
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          ULTRAMSG_TOKEN: ${{ secrets.ULTRAMSG_TOKEN }}
+        run: |
+          set -euo pipefail
+          failed=0
+
+          for name in \
+            ANYPOINT_ORG_ID \
+            ANYPOINT_CLIENT_ID \
+            ANYPOINT_CLIENT_SECRET \
+            CLOUDHUB_APPLICATION_NAME \
+            CLOUDHUB_ENVIRONMENT \
+            CLOUDHUB_TARGET_WEST \
+            CLOUDHUB_TARGET_WESTB \
+            CLOUDHUB_TARGET_EAST \
+            CLOUDHUB_REPLICAS \
+            CLOUDHUB_VCORES \
+            DB_SF_NAME \
+            DB_SF_WAREHOUSE \
+            DB_SF_DATABASE \
+            DB_SF_SCHEMA \
+            DB_SF_USER \
+            DB_SF_PASSWORD \
+            DB_SF_ROLE \
+            SMTP_HOST \
+            SMTP_PORT \
+            SMTP_USER \
+            SMTP_PASSWORD \
+            ULTRAMSG_TOKEN
+          do
+            if [ -z "${!name:-}" ]; then
+              echo "::error::Missing required GitHub secret: ${name}"
+              failed=1
+            else
+              echo "${name}: configured"
+            fi
+          done
+
+          if [ "${failed}" -ne 0 ]; then
+            exit 1
+          fi
+
+  build-artifact:
+    name: 📦 Build & Package Mule Artifact
+    runs-on: ubuntu-latest
+    needs: validate-config
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -24,53 +128,12 @@ jobs:
           java-version: '17'
           cache: maven
 
-      - name: Validate Anypoint organization secret
-        env:
-          ANYPOINT_ORG_ID: ${{ secrets.ANYPOINT_ORG_ID }}
-        run: |
-          if [ -z "$ANYPOINT_ORG_ID" ]; then
-            echo "::error::Missing GitHub Actions secret ANYPOINT_ORG_ID."
-            echo "Add the Anypoint Platform Organization ID as the ANYPOINT_ORG_ID repository secret."
-            exit 1
-          fi
-
-      - name: Validate Connected App authentication
-        env:
-          ANYPOINT_CLIENT_ID: ${{ secrets.ANYPOINT_CLIENT_ID }}
-          ANYPOINT_CLIENT_SECRET: ${{ secrets.ANYPOINT_CLIENT_SECRET }}
-        run: |
-          if [ -z "$ANYPOINT_CLIENT_ID" ] || [ -z "$ANYPOINT_CLIENT_SECRET" ]; then
-            echo "::error::Missing ANYPOINT_CLIENT_ID or ANYPOINT_CLIENT_SECRET GitHub Actions secret."
-            exit 1
-          fi
-
-          response=$(curl -sS -w '\n%{http_code}' \
-            -X POST 'https://anypoint.mulesoft.com/accounts/api/v2/oauth2/token' \
-            -H 'Content-Type: application/x-www-form-urlencoded' \
-            --data-urlencode 'grant_type=client_credentials' \
-            --data-urlencode "client_id=$ANYPOINT_CLIENT_ID" \
-            --data-urlencode "client_secret=$ANYPOINT_CLIENT_SECRET")
-
-          status=$(printf '%s\n' "$response" | tail -n1)
-          body=$(printf '%s\n' "$response" | sed '$d')
-
-          if [ "$status" != "200" ]; then
-            echo "::error::Anypoint Connected App authentication failed with HTTP $status."
-            echo "$body" | sed -E 's/"access_token":"[^"]+"/"access_token":"[REDACTED]"/g'
-            exit 1
-          fi
-
-          if ! printf '%s' "$body" | grep -q '"access_token"'; then
-            echo "::error::Anypoint returned HTTP 200 but no access token was present."
-            exit 1
-          fi
-
-          echo "Connected App authentication succeeded."
       - name: Configure Exchange authentication
         env:
           ANYPOINT_CLIENT_ID: ${{ secrets.ANYPOINT_CLIENT_ID }}
           ANYPOINT_CLIENT_SECRET: ${{ secrets.ANYPOINT_CLIENT_SECRET }}
         run: |
+          set -euo pipefail
           mkdir -p "$HOME/.m2"
           cat > "$HOME/.m2/settings.xml" <<EOF
           <?xml version="1.0" encoding="UTF-8"?>
@@ -91,27 +154,101 @@ jobs:
         env:
           ANYPOINT_ORG_ID: ${{ secrets.ANYPOINT_ORG_ID }}
         run: |
+          set -euo pipefail
           perl -0pi -e 's/\$\{env\.ANYPOINT_ORG_ID\}/$ENV{ANYPOINT_ORG_ID}/g' pom.xml
-          if grep -q '\${env.ANYPOINT_ORG_ID}' pom.xml; then
-            echo "::error::Maven organization placeholder was not resolved."
-            exit 1
-          fi
-          echo "Maven organization coordinates prepared."
 
-      - name: Package and publish application to Anypoint Exchange
+      - name: Package application
         env:
           OID: ${{ secrets.ANYPOINT_ORG_ID }}
-          CID: ${{ secrets.ANYPOINT_CLIENT_ID }}
-          CSEC: ${{ secrets.ANYPOINT_CLIENT_SECRET }}
         run: |
+          set -euo pipefail
           mvn --batch-mode clean package -Denv.ANYPOINT_ORG_ID="$OID"
-          bash .github/scripts/publish-exchange-v101.sh
 
-      - name: Deploy Exchange asset to CloudHub 2.0
+          artifact=$(find target -maxdepth 1 -type f -name '*.jar' ! -name '*-sources.jar' | head -n1)
+          if [ -z "$artifact" ]; then
+            echo "::error::No Mule application JAR was produced."
+            exit 1
+          fi
+
+          echo "Artifact: $artifact"
+          sha256sum "$artifact" | tee target/mule-artifact.sha256
+
+      - name: Publish application to Anypoint Exchange
+        run: bash .github/scripts/publish-exchange-v101.sh
+
+      - name: Upload immutable build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mule-application-${{ github.sha }}
+          path: |
+            target/*.jar
+            target/mule-artifact.sha256
+          if-no-files-found: error
+          retention-days: 14
+
+  artifact-check:
+    name: 🧪 Artifact Validation
+    runs-on: ubuntu-latest
+    needs: build-artifact
+    steps:
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: mule-application-${{ github.sha }}
+          path: artifact
+
+      - name: Validate artifact structure and checksum
+        run: |
+          set -euo pipefail
+
+          jars=(artifact/*.jar)
+          if [ "${#jars[@]}" -ne 1 ]; then
+            echo "::error::Expected exactly one Mule application JAR; found ${#jars[@]}."
+            exit 1
+          fi
+
+          jar="${jars[0]}"
+          test -s "$jar"
+          test -s artifact/mule-artifact.sha256
+
+          (cd artifact && sha256sum -c mule-artifact.sha256)
+
+          if ! unzip -l "$jar" | grep -q 'mule-artifact.json'; then
+            echo "::error::mule-artifact.json is missing from the application artifact."
+            exit 1
+          fi
+
+          echo "Artifact validation passed."
+          echo "Artifact: $(basename "$jar")"
+          echo "Size: $(du -h "$jar" | cut -f1)"
+
+  deploy-west:
+    name: 🌎 Deploy — WEST
+    runs-on: ubuntu-latest
+    needs: artifact-check
+    environment: production-west
+    steps:
+      - name: Checkout deployment descriptor
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+
+      - name: Download immutable artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: mule-application-${{ github.sha }}
+          path: artifact
+
+      - name: Deploy WEST
         env:
-          ANYPOINT_ORG_ID: ${{ secrets.ANYPOINT_ORG_ID }}
           ANYPOINT_CLIENT_ID: ${{ secrets.ANYPOINT_CLIENT_ID }}
           ANYPOINT_CLIENT_SECRET: ${{ secrets.ANYPOINT_CLIENT_SECRET }}
+          ANYPOINT_ORG_ID: ${{ secrets.ANYPOINT_ORG_ID }}
           DB_SF_NAME: ${{ secrets.DB_SF_NAME }}
           DB_SF_WAREHOUSE: ${{ secrets.DB_SF_WAREHOUSE }}
           DB_SF_DATABASE: ${{ secrets.DB_SF_DATABASE }}
@@ -124,22 +261,161 @@ jobs:
           SMTP_USER: ${{ secrets.SMTP_USER }}
           SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
           ULTRAMSG_TOKEN: ${{ secrets.ULTRAMSG_TOKEN }}
-        run: >
-          mvn --batch-mode
-          mule:deploy
-          -DmuleDeploy
-          -Denv.ANYPOINT_ORG_ID="$ANYPOINT_ORG_ID"
-          -Danypoint.client.id="$ANYPOINT_CLIENT_ID"
-          -Danypoint.client.secret="$ANYPOINT_CLIENT_SECRET"
-          -Dcloudhub.application.name="${{ secrets.CLOUDHUB_APPLICATION_NAME }}"
-          -Dcloudhub.environment="${{ secrets.CLOUDHUB_ENVIRONMENT }}"
-          -Dcloudhub.target="${{ secrets.CLOUDHUB_TARGET }}"
-          -Dcloudhub.replicas="${{ secrets.CLOUDHUB_REPLICAS }}"
-          -Dcloudhub.vcores="${{ secrets.CLOUDHUB_VCORES }}"
-      - name: Deployment summary
-        if: success()
         run: |
-          echo "CloudHub 2.0 deployment completed."
-          echo "Application: ${{ secrets.CLOUDHUB_APPLICATION_NAME }}"
-          echo "Environment: ${{ secrets.CLOUDHUB_ENVIRONMENT }}"
-          echo "Target: ${{ secrets.CLOUDHUB_TARGET }}"
+          set -euo pipefail
+          artifact=$(find artifact -maxdepth 1 -type f -name '*.jar' | head -n1)
+
+          mvn --batch-mode mule:deploy \
+            -Dmule.artifact="$artifact" \
+            -DmuleDeploy \
+            -Denv.ANYPOINT_ORG_ID="$ANYPOINT_ORG_ID" \
+            -Danypoint.client.id="$ANYPOINT_CLIENT_ID" \
+            -Danypoint.client.secret="$ANYPOINT_CLIENT_SECRET" \
+            -Dcloudhub.application.name="${{ secrets.CLOUDHUB_APPLICATION_NAME }}-west" \
+            -Dcloudhub.environment="${{ secrets.CLOUDHUB_ENVIRONMENT }}" \
+            -Dcloudhub.target="${{ secrets.CLOUDHUB_TARGET_WEST }}" \
+            -Dcloudhub.replicas="${{ secrets.CLOUDHUB_REPLICAS }}" \
+            -Dcloudhub.vcores="${{ secrets.CLOUDHUB_VCORES }}"
+
+  deploy-westb:
+    name: 🌎 Deploy — WESTB
+    runs-on: ubuntu-latest
+    needs: artifact-check
+    environment: production-westb
+    steps:
+      - name: Checkout deployment descriptor
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+
+      - name: Download immutable artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: mule-application-${{ github.sha }}
+          path: artifact
+
+      - name: Deploy WESTB
+        env:
+          ANYPOINT_CLIENT_ID: ${{ secrets.ANYPOINT_CLIENT_ID }}
+          ANYPOINT_CLIENT_SECRET: ${{ secrets.ANYPOINT_CLIENT_SECRET }}
+          ANYPOINT_ORG_ID: ${{ secrets.ANYPOINT_ORG_ID }}
+          DB_SF_NAME: ${{ secrets.DB_SF_NAME }}
+          DB_SF_WAREHOUSE: ${{ secrets.DB_SF_WAREHOUSE }}
+          DB_SF_DATABASE: ${{ secrets.DB_SF_DATABASE }}
+          DB_SF_SCHEMA: ${{ secrets.DB_SF_SCHEMA }}
+          DB_SF_USER: ${{ secrets.DB_SF_USER }}
+          DB_SF_PASSWORD: ${{ secrets.DB_SF_PASSWORD }}
+          DB_SF_ROLE: ${{ secrets.DB_SF_ROLE }}
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          ULTRAMSG_TOKEN: ${{ secrets.ULTRAMSG_TOKEN }}
+        run: |
+          set -euo pipefail
+          artifact=$(find artifact -maxdepth 1 -type f -name '*.jar' | head -n1)
+
+          mvn --batch-mode mule:deploy \
+            -Dmule.artifact="$artifact" \
+            -DmuleDeploy \
+            -Denv.ANYPOINT_ORG_ID="$ANYPOINT_ORG_ID" \
+            -Danypoint.client.id="$ANYPOINT_CLIENT_ID" \
+            -Danypoint.client.secret="$ANYPOINT_CLIENT_SECRET" \
+            -Dcloudhub.application.name="${{ secrets.CLOUDHUB_APPLICATION_NAME }}-westb" \
+            -Dcloudhub.environment="${{ secrets.CLOUDHUB_ENVIRONMENT }}" \
+            -Dcloudhub.target="${{ secrets.CLOUDHUB_TARGET_WESTB }}" \
+            -Dcloudhub.replicas="${{ secrets.CLOUDHUB_REPLICAS }}" \
+            -Dcloudhub.vcores="${{ secrets.CLOUDHUB_VCORES }}"
+
+  deploy-east:
+    name: 🌎 Deploy — EAST
+    runs-on: ubuntu-latest
+    needs: artifact-check
+    environment: production-east
+    steps:
+      - name: Checkout deployment descriptor
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+
+      - name: Download immutable artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: mule-application-${{ github.sha }}
+          path: artifact
+
+      - name: Deploy EAST
+        env:
+          ANYPOINT_CLIENT_ID: ${{ secrets.ANYPOINT_CLIENT_ID }}
+          ANYPOINT_CLIENT_SECRET: ${{ secrets.ANYPOINT_CLIENT_SECRET }}
+          ANYPOINT_ORG_ID: ${{ secrets.ANYPOINT_ORG_ID }}
+          DB_SF_NAME: ${{ secrets.DB_SF_NAME }}
+          DB_SF_WAREHOUSE: ${{ secrets.DB_SF_WAREHOUSE }}
+          DB_SF_DATABASE: ${{ secrets.DB_SF_DATABASE }}
+          DB_SF_SCHEMA: ${{ secrets.DB_SF_SCHEMA }}
+          DB_SF_USER: ${{ secrets.DB_SF_USER }}
+          DB_SF_PASSWORD: ${{ secrets.DB_SF_PASSWORD }}
+          DB_SF_ROLE: ${{ secrets.DB_SF_ROLE }}
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          ULTRAMSG_TOKEN: ${{ secrets.ULTRAMSG_TOKEN }}
+        run: |
+          set -euo pipefail
+          artifact=$(find artifact -maxdepth 1 -type f -name '*.jar' | head -n1)
+
+          mvn --batch-mode mule:deploy \
+            -Dmule.artifact="$artifact" \
+            -DmuleDeploy \
+            -Denv.ANYPOINT_ORG_ID="$ANYPOINT_ORG_ID" \
+            -Danypoint.client.id="$ANYPOINT_CLIENT_ID" \
+            -Danypoint.client.secret="$ANYPOINT_CLIENT_SECRET" \
+            -Dcloudhub.application.name="${{ secrets.CLOUDHUB_APPLICATION_NAME }}-east" \
+            -Dcloudhub.environment="${{ secrets.CLOUDHUB_ENVIRONMENT }}" \
+            -Dcloudhub.target="${{ secrets.CLOUDHUB_TARGET_EAST }}" \
+            -Dcloudhub.replicas="${{ secrets.CLOUDHUB_REPLICAS }}" \
+            -Dcloudhub.vcores="${{ secrets.CLOUDHUB_VCORES }}"
+
+  deployment-summary:
+    name: 📊 Deployment Summary
+    runs-on: ubuntu-latest
+    needs:
+      - deploy-west
+      - deploy-westb
+      - deploy-east
+    if: always()
+    steps:
+      - name: Publish deployment graph and status
+        run: |
+          {
+            echo "## 🚀 Multi-Region Deployment"
+            echo ""
+            echo "| Stage | Status |"
+            echo "|---|---|"
+            echo "| 🔐 User permission | ${{ needs.deploy-west.result != 'skipped' && 'passed' || 'blocked' }} |"
+            echo "| 📦 Artifact validation | ${{ needs.deploy-west.result != 'skipped' && 'passed' || 'blocked' }} |"
+            echo "| 🌎 WEST | ${{ needs.deploy-west.result }} |"
+            echo "| 🌎 WESTB | ${{ needs.deploy-westb.result }} |"
+            echo "| 🌎 EAST | ${{ needs.deploy-east.result }} |"
+            echo ""
+            echo "### Pipeline flow"
+            echo ""
+            echo 'Permission Check → Configuration Validation → Build → Artifact Check → **WEST**'
+            echo ""
+            echo '                                                             ↘ **WESTB**'
+            echo ""
+            echo '                                                             ↘ **EAST**'
+            echo ""
+            echo "The three regional deployments consume the same immutable JAR produced by the build."
+          } >> "$GITHUB_STEP_SUMMARY"
