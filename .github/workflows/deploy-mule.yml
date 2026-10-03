@@ -69,10 +69,7 @@ jobs:
           ANYPOINT_CLIENT_SECRET: ${{ secrets.ANYPOINT_CLIENT_SECRET }}
           CLOUDHUB_APPLICATION_NAME: ${{ secrets.CLOUDHUB_APPLICATION_NAME }}
           CLOUDHUB_ENVIRONMENT: ${{ secrets.CLOUDHUB_ENVIRONMENT }}
-          CLOUDHUB_ENVIRONMENT_ID: ${{ secrets.CLOUDHUB_ENVIRONMENT_ID }}
-          CLOUDHUB_TARGET_WEST: ${{ secrets.CLOUDHUB_TARGET_WEST }}
-          CLOUDHUB_TARGET_WESTB: ${{ secrets.CLOUDHUB_TARGET_WESTB }}
-          CLOUDHUB_TARGET_EAST: ${{ secrets.CLOUDHUB_TARGET_EAST }}
+          CLOUDHUB_TARGET: ${{ secrets.CLOUDHUB_TARGET }}
           CLOUDHUB_REPLICAS: ${{ secrets.CLOUDHUB_REPLICAS }}
           CLOUDHUB_VCORES: ${{ secrets.CLOUDHUB_VCORES }}
           DB_SF_NAME: ${{ secrets.DB_SF_NAME }}
@@ -89,7 +86,7 @@ jobs:
         run: |
           set -euo pipefail
           failed=0
-          for name in ANYPOINT_ORG_ID ANYPOINT_CLIENT_ID ANYPOINT_CLIENT_SECRET CLOUDHUB_APPLICATION_NAME CLOUDHUB_ENVIRONMENT CLOUDHUB_ENVIRONMENT_ID CLOUDHUB_TARGET_WEST CLOUDHUB_TARGET_WESTB CLOUDHUB_TARGET_EAST CLOUDHUB_REPLICAS CLOUDHUB_VCORES DB_SF_NAME DB_SF_WAREHOUSE DB_SF_DATABASE DB_SF_SCHEMA DB_SF_USER DB_SF_PASSWORD DB_SF_ROLE SMTP_HOST SMTP_PORT SMTP_USER SMTP_PASSWORD; do
+          for name in ANYPOINT_ORG_ID ANYPOINT_CLIENT_ID ANYPOINT_CLIENT_SECRET CLOUDHUB_APPLICATION_NAME CLOUDHUB_ENVIRONMENT CLOUDHUB_REPLICAS CLOUDHUB_VCORES DB_SF_NAME DB_SF_WAREHOUSE DB_SF_DATABASE DB_SF_SCHEMA DB_SF_USER DB_SF_PASSWORD DB_SF_ROLE SMTP_HOST SMTP_PORT SMTP_USER SMTP_PASSWORD; do
             if [ -z "${!name:-}" ]; then
               echo "::error::[${{ matrix.environment }}] Missing required GitHub Environment secret: ${name}"
               failed=1
@@ -102,45 +99,19 @@ jobs:
           echo "Environment [${{ matrix.environment }}] is isolated."
           echo "Application: ${CLOUDHUB_APPLICATION_NAME}"
           echo "CloudHub environment: ${CLOUDHUB_ENVIRONMENT}"
-          echo "Anypoint environment ID: ${CLOUDHUB_ENVIRONMENT_ID}"
           case "${{ matrix.environment }}" in
-            dev)
-              expected_name="dev"
-              expected_id="79403e5e-3282-440a-b10b-e102ae052d0c"
-              ;;
-            qa)
-              expected_name="qa"
-              expected_id="b557d817-7ca7-4c9d-a341-fb5110df26d1"
-              ;;
-            sandbox)
-              expected_name="Sandbox"
-              expected_id="f63db7fe-e2dc-4410-a6d9-7810f0c713f6"
-              ;;
-            prod)
-              expected_name="prod"
-              expected_id="38375706-c667-4d01-8d3e-56882a29fe8b"
-              ;;
-            *)
-              echo "::error::Unsupported deployment environment: ${{ matrix.environment }}"
-              exit 1
-              ;;
+            dev) expected_name="dev"; expected_id="79403e5e-3282-440a-b10b-e102ae052d0c" ;;
+            qa) expected_name="qa"; expected_id="b557d817-7ca7-4c9d-a341-fb5110df26d1" ;;
+            sandbox) expected_name="Sandbox"; expected_id="f63db7fe-e2dc-4410-a6d9-7810f0c713f6" ;;
+            prod) expected_name="prod"; expected_id="38375706-c667-4d01-8d3e-56882a29fe8b" ;;
+            *) echo "::error::Unsupported deployment environment: ${{ matrix.environment }}"; exit 1 ;;
           esac
-
           if [ "${CLOUDHUB_ENVIRONMENT}" != "${expected_name}" ]; then
             echo "::error::[${{ matrix.environment }}] CLOUDHUB_ENVIRONMENT='${CLOUDHUB_ENVIRONMENT}' does not match expected Anypoint environment '${expected_name}'."
             exit 1
           fi
-
-          if [ "${CLOUDHUB_ENVIRONMENT_ID}" != "${expected_id}" ]; then
-            echo "::error::[${{ matrix.environment }}] CLOUDHUB_ENVIRONMENT_ID does not match the expected Anypoint environment ID."
-            exit 1
-          fi
-
           echo "Anypoint environment mapping verified: ${expected_name} (${expected_id})"
-
-          echo "WEST target: ${CLOUDHUB_TARGET_WEST}"
-          echo "WESTB target: ${CLOUDHUB_TARGET_WESTB}"
-          echo "EAST target: ${CLOUDHUB_TARGET_EAST}"
+          echo "Shared CloudHub target: ${CLOUDHUB_TARGET}"
 
   build-artifact:
     environment: ${{ inputs.environment == 'all' && 'dev' || inputs.environment }}
@@ -341,7 +312,7 @@ jobs:
           REGION_NAME: WEST
           CLOUDHUB_APPLICATION_NAME: ${{ secrets.CLOUDHUB_APPLICATION_NAME }}
           CLOUDHUB_ENVIRONMENT: ${{ secrets.CLOUDHUB_ENVIRONMENT }}
-          CLOUDHUB_TARGET: ${{ secrets.CLOUDHUB_TARGET_WEST || secrets.CLOUDHUB_TARGET }}
+          CLOUDHUB_TARGET: ${{ secrets.CLOUDHUB_TARGET }}
           CLOUDHUB_REPLICAS: ${{ secrets.CLOUDHUB_REPLICAS }}
           CLOUDHUB_VCORES: ${{ secrets.CLOUDHUB_VCORES }}
         run: |
@@ -413,7 +384,7 @@ jobs:
           REGION_NAME: WESTB
           CLOUDHUB_APPLICATION_NAME: ${{ secrets.CLOUDHUB_APPLICATION_NAME }}
           CLOUDHUB_ENVIRONMENT: ${{ secrets.CLOUDHUB_ENVIRONMENT }}
-          CLOUDHUB_TARGET: ${{ secrets.CLOUDHUB_TARGET_WESTB || secrets.CLOUDHUB_TARGET }}
+          CLOUDHUB_TARGET: ${{ secrets.CLOUDHUB_TARGET }}
           CLOUDHUB_REPLICAS: ${{ secrets.CLOUDHUB_REPLICAS }}
           CLOUDHUB_VCORES: ${{ secrets.CLOUDHUB_VCORES }}
         run: |
@@ -485,7 +456,7 @@ jobs:
           REGION_NAME: EAST
           CLOUDHUB_APPLICATION_NAME: ${{ secrets.CLOUDHUB_APPLICATION_NAME }}
           CLOUDHUB_ENVIRONMENT: ${{ secrets.CLOUDHUB_ENVIRONMENT }}
-          CLOUDHUB_TARGET: ${{ secrets.CLOUDHUB_TARGET_EAST || secrets.CLOUDHUB_TARGET }}
+          CLOUDHUB_TARGET: ${{ secrets.CLOUDHUB_TARGET }}
           CLOUDHUB_REPLICAS: ${{ secrets.CLOUDHUB_REPLICAS }}
           CLOUDHUB_VCORES: ${{ secrets.CLOUDHUB_VCORES }}
         run: |
