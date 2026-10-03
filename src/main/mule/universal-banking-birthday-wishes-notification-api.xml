@@ -30,13 +30,19 @@ http://www.mulesoft.org/schema/mule/sns http://www.mulesoft.org/schema/mule/sns/
     <http:listener config-ref="Dashboard_HTTP_Listener" path="/" allowedMethods="GET,HEAD,OPTIONS" doc:name="Dashboard UI Root">
       <http:response>
         <http:headers><![CDATA[#[{
+          "Content-Type": "text/html; charset=UTF-8",
+          "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
           "Access-Control-Allow-Origin": "*",
           "Access-Control-Allow-Methods": "GET,HEAD,OPTIONS",
           "Access-Control-Allow-Headers": "Content-Type,Authorization"
         }]]]></http:headers>
       </http:response>
     </http:listener>
-    <http:load-static-resource resourceBasePath="site" defaultFile="index.html" doc:name="Load dashboard UI"/>
+    <ee:transform doc:name="Load dashboard UI from classpath">
+      <ee:message>
+        <ee:set-payload><![CDATA[#[readUrl("classpath://site/index.html", "text/plain")]]]></ee:set-payload>
+      </ee:message>
+    </ee:transform>
   </flow>
 
 <flow name="runtime-info-api" doc:name="Runtime Information API">
