@@ -48,7 +48,7 @@ main{padding:24px 20px 50px}.toolbar{display:flex;justify-content:space-between;
 <div class="card"><h2>⚙️ Integration status</h2><p>Scheduler <b style="color:var(--green)">● Configured</b></p><p>Snowflake <b id="snowStatus" style="color:var(--amber)">● Checking…</b></p><p>Dashboard API <b id="dashStatus" style="color:var(--amber)">● Checking…</b></p><p>Customers API <b id="customerStatus" style="color:var(--amber)">● Checking…</b></p><p>SMTP <b style="color:var(--green)">● Configured</b></p><p>Last refresh<br><b id="lastRefresh">—</b></p></div>
 </section>
 <section class="card" style="margin-top:16px"><h2>📨 Notification outbox — latest 100</h2><div class="tablewrap"><table><thead><tr><th>Notification</th><th>Customer</th><th>Type</th><th>Status</th><th>Attempts</th><th>Created</th><th>Sent</th><th>Error</th></tr></thead><tbody id="outboxRows"><tr><td colspan="8">Loading…</td></tr></tbody></table></div></section>
-<section class="card" style="margin-top:16px"><h2>👥 All active customers from Snowflake</h2><div class="filters"><input id="search" placeholder="Search customer..." autocomplete="off"><select id="range"><option value="all">All active customers</option><option value="today">Birthday today</option><option value="30">Birthdays in next 30 days</option><option value="7">Birthdays in next 7 days</option><option value="sent">Birthday wish already sent</option><option value="pending">Birthday wish pending</option></select></div><div class="tablewrap"><table><thead><tr><th>Customer</th><th>Bank</th><th>Account</th><th>Birthday</th><th>Days left</th><th>Email</th><th>Wish status</th><th>Sent date</th></tr></thead><tbody id="rows"><tr><td colspan="8">Loading…</td></tr></tbody></table></div></section>
+<section class="card" style="margin-top:16px"><h2>👥 All active customers from Snowflake</h2><div class="filters"><input id="search" placeholder="Search customer..." autocomplete="off"><select id="range"><option value="all">All active customers</option><option value="today">Birthday today</option><option value="30">Birthdays in next 30 days</option><option value="7">Birthdays in next 7 days</option><option value="sent">Birthday wish already sent</option><option value="pending">Birthday wish pending</option></select></div><div id="customerPager" style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin:10px 0;font-size:12px;color:var(--muted)"><span id="customerPageInfo">Loading customers…</span><span style="display:flex;gap:8px"><button class="secondary" id="prevPage" type="button">← Previous</button><button class="secondary" id="nextPage" type="button">Next →</button></span></div><div class="tablewrap"><table><thead><tr><th>Customer</th><th>Bank</th><th>Account</th><th>Birthday</th><th>Days left</th><th>Email</th><th>Wish status</th><th>Sent date</th></tr></thead><tbody id="rows"><tr><td colspan="8">Loading…</td></tr></tbody></table></div></section>
 <div class="notice"><b>Live data:</b> Customer records and metrics are loaded from the MuleSoft APIs. No demo customer records are embedded in this page.</div>
 </main>
 <script>
@@ -63,7 +63,7 @@ main{padding:24px 20px 50px}.toolbar{display:flex;justify-content:space-between;
   const HEALTH_URL=API_BASE+"/health";
   const TEST_RUN_URL=API_BASE+"/test/birthday-run";
   const OUTBOX_URL=API_BASE+"/outbox";
-  const data={metrics:{},customers:[],customerTotal:0,sentByDay:[],monthlyBirthdays:[]};
+  const data={metrics:{},customers:[],customerTotal:0,customerPage:1,customerPageSize:100,customerTotalPages:0,sentByDay:[],monthlyBirthdays:[]};
 
   function $(id){return document.getElementById(id);}
   function money(v){return Number(v||0).toLocaleString("en-IN");}
@@ -249,61 +249,60 @@ main{padding:24px 20px 50px}.toolbar{display:flex;justify-content:space-between;
     el.style.color=isError?"#9b2020":"#214d70";
   }
 
+  async function loadCustomersPage(page){
+    const q=encodeURIComponent(($("search").value||"").trim());
+    const url=CUSTOMERS_URL+"?page="+page+"&limit="+data.customerPageSize+(q?"&search="+q:"");
+    const payload=await fetchJson(url);
+    const list=Array.isArray(payload.customers)?payload.customers:[];
+    data.customers=normalizeCustomers(list);
+    data.customerTotal=Number(payload.total||0);
+    data.customerPage=Number(payload.page||page);
+    data.customerTotalPages=Number(payload.totalPages||Math.ceil(data.customerTotal/data.customerPageSize));
+    $("customerStatus").textContent="● Live"; $("customerStatus").style.color="var(--green)";
+    $("snowStatus").textContent="● Live"; $("snowStatus").style.color="var(--green)";
+    $("customerPageInfo").textContent="Showing "+(data.customerTotal?((data.customerPage-1)*data.customerPageSize+1):0)+"–"+Math.min(data.customerPage*data.customerPageSize,data.customerTotal)+" of "+money(data.customerTotal)+" customers";
+    $("prevPage").disabled=data.customerPage<=1;
+    $("nextPage").disabled=data.customerPage>=data.customerTotalPages;
+    renderTable();
+  }
+
   async function loadDashboard(){
     $("error").style.display="none";
     $("apiStatus").textContent="CONNECTING API…";
     $("updated").textContent="Loading live data…";
-    let dashboardOk=false,customersOk=false;
+    let dashboardOk=false;
     const errors=[];
-
     try{
       const dashboard=await fetchJson(API_URL);
       data.metrics=dashboard.metrics||{};
       data.sentByDay=Array.isArray(dashboard.sentByDay)?dashboard.sentByDay:[];
       data.monthlyBirthdays=Array.isArray(dashboard.monthlyBirthdays)?dashboard.monthlyBirthdays:[];
-      if(Array.isArray(dashboard.customers)){ data.customers=dashboard.customers.slice(0,500); data.customerTotal=dashboard.customers.length; }
       dashboardOk=true;
       $("dashStatus").textContent="● Live"; $("dashStatus").style.color="var(--green)";
     }catch(e){
       errors.push("Dashboard: "+e.message);
       $("dashStatus").textContent="● Error"; $("dashStatus").style.color="var(--red)";
     }
-
     try{
       const outboxPayload=await fetchJson(OUTBOX_URL);
       renderOutbox(outboxPayload&&Array.isArray(outboxPayload.notifications)?outboxPayload.notifications:[]);
     }catch(e){
       $("outboxRows").innerHTML='<tr><td colspan="8">Outbox API error: '+escapeHtml(e.message)+'</td></tr>';
     }
-
-    if(Array.isArray(data.customers) && data.customers.length){
-      data.customers=normalizeCustomers(data.customers);
-      customersOk=true;
-      $("customerStatus").textContent="● Live"; $("customerStatus").style.color="var(--green)";
-      $("snowStatus").textContent="● Live"; $("snowStatus").style.color="var(--green)";
-    }else{
-      try{
-        const customerPayload=await fetchJson(CUSTOMERS_URL);
-        data.customers=normalizeCustomers(customerPayload);
-        customersOk=true;
-        $("customerStatus").textContent="● Live"; $("customerStatus").style.color="var(--green)";
-        $("snowStatus").textContent="● Live"; $("snowStatus").style.color="var(--green)";
-      }catch(e){
-        errors.push("Customers: "+e.message);
-        $("customerStatus").textContent="● Error"; $("customerStatus").style.color="var(--red)";
-      }
-    }
-
     render();
-    if(dashboardOk||customersOk){
-      $("apiStatus").textContent=dashboardOk&&customersOk?"API CONNECTED":"API PARTIAL";
+    try{ await loadCustomersPage(1); }catch(e){
+      errors.push("Customers: "+e.message);
+      $("customerStatus").textContent="● Error"; $("customerStatus").style.color="var(--red)";
+    }
+    if(dashboardOk){
+      $("apiStatus").textContent="API CONNECTED";
       $("apiStatus").style.background="#0f9d6833";
       $("lastRefresh").textContent=new Date().toLocaleString("en-IN");
       $("updated").textContent="Live data refreshed: "+new Date().toLocaleString("en-IN");
     }else{
-      $("apiStatus").textContent="API UNAVAILABLE";
-      $("apiStatus").style.background="#d1434326";
-      $("updated").textContent="Live data unavailable";
+      $("apiStatus").textContent="API PARTIAL";
+      $("apiStatus").style.background="#d8890033";
+      $("updated").textContent="Customer data loaded; dashboard metrics unavailable";
     }
     if(errors.length){
       $("error").textContent=errors.join(" | ")+" | API base: "+API_BASE;
@@ -317,8 +316,8 @@ main{padding:24px 20px 50px}.toolbar{display:flex;justify-content:space-between;
   });
   $("healthBtn").addEventListener("click",checkHealth);
   $("testRunBtn").addEventListener("click",runBirthdayCheck);
-  $("search").addEventListener("input",window.renderTable);
-  $("range").addEventListener("change",window.renderTable);
+  $("search").addEventListener("input",function(){clearTimeout(window.customerSearchTimer);window.customerSearchTimer=setTimeout(function(){loadCustomersPage(1);},300);});
+  $("range").addEventListener("change",window.renderTable);\n  $("prevPage").addEventListener("click",function(){if(data.customerPage>1)loadCustomersPage(data.customerPage-1);});\n  $("nextPage").addEventListener("click",function(){if(data.customerPage<data.customerTotalPages)loadCustomersPage(data.customerPage+1);});
   window.addEventListener("online",loadDashboard);
   loadRuntime();
   loadDashboard();
