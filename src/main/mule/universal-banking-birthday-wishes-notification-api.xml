@@ -36,7 +36,7 @@ http://www.mulesoft.org/schema/mule/sns http://www.mulesoft.org/schema/mule/sns/
         }]]]></http:headers>
       </http:response>
     </http:listener>
-    <http:load-static-resource resourceBasePath="site" defaultFile="index.html" attributes="attributes" doc:name="Load dashboard UI"/>
+    <http:load-static-resource resourceBasePath="site" defaultFile="index.html" doc:name="Load dashboard UI"/>
   </flow>
 
 <flow name="runtime-info-api" doc:name="Runtime Information API">
