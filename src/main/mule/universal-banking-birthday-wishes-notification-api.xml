@@ -274,10 +274,15 @@ SELECT OWNER,STATUS FROM BANK_NOTIFICATION_OUTBOX WHERE NOTIFICATION_ID=:notific
                     <set-variable variableName="emailSent" value="#[false]" doc:name="Email sent flag"/>
                     <set-variable variableName="lastError" value="#['']" doc:name="Last error"/>
                     <try doc:name="Send birthday email">
-                        <set-payload value="#[%dw 2.0
+                        <ee:transform doc:name="Build HTML email">
+                            <ee:message>
+                                <ee:set-payload><![CDATA[%dw 2.0
 output text/plain
 ---
-&quot;<html><body style='font-family:Arial,sans-serif;padding:20px;'><h2>🎉 Happy Birthday, &quot; ++ (vars.name default &quot;Customer&quot;) ++ &quot;!</h2><p>Dear <b>&quot; ++ (vars.name default &quot;Customer&quot;) ++ &quot;</b>,</p><p>Warm Birthday Wishes from <b>&quot; ++ (vars.bankName default &quot;Our Bank&quot;) ++ &quot;</b>.</p><p>May this day bring happiness, success, good health, and prosperity.</p><p>Thank you for choosing us as your trusted banking partner.</p><p>Have a wonderful birthday! 🎂</p><p>Regards,<br/><b>Customer Relationship Team</b></p></body></html>&quot;]" doc:name="Build HTML email"/>
+"<html><body style='font-family:Arial,sans-serif;padding:20px;'><h2>🎉 Happy Birthday, " ++ (vars.name default "Customer") ++ "!</h2><p>Dear <b>" ++ (vars.name default "Customer") ++ "</b>,</p><p>Warm Birthday Wishes from <b>" ++ (vars.bankName default "Our Bank") ++ "</b>.</p><p>May this day bring happiness, success, good health, and prosperity.</p><p>Thank you for choosing us as your trusted banking partner.</p><p>Have a wonderful birthday! 🎂</p><p>Regards,<br/><b>Customer Relationship Team</b></p></body></html>"
+]]></ee:set-payload>
+                            </ee:message>
+                        </ee:transform>
                         <email:send doc:name="Send birthday email" config-ref="Email_SMTP" fromAddress="${smtp.user}" subject='#["🎂 Happy Birthday " ++ vars.name ++ " - " ++ vars.bankName]'><email:to-addresses><email:to-address value="#[vars.email]"/></email:to-addresses><email:body contentType="text/html" encoding="UTF-8"/></email:send>
                         <set-variable variableName="emailSent" value="#[true]" doc:name="Mark email accepted"/>
                         <error-handler><on-error-continue type="ANY" doc:name="Email failure">
