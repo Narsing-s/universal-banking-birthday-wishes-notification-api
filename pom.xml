@@ -50,6 +50,9 @@
             <target>${cloudhub.target}</target>
             <replicas>${cloudhub.replicas}</replicas>
             <vCores>${cloudhub.vcores}</vCores>
+            <deploymentSettings>
+              <updateStrategy>recreate</updateStrategy>
+            </deploymentSettings>
             <properties>
               <env>cloud</env>
               <DB_SF_NAME>${env.DB_SF_NAME}</DB_SF_NAME>
