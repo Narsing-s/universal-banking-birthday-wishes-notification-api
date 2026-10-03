@@ -223,7 +223,7 @@ AND STATUS='ACTIVE' AND EMAIL IS NOT NULL
 AND (BIRTHDAY_WISH_SENT_DATE IS NULL OR YEAR(BIRTHDAY_WISH_SENT_DATE)&lt;YEAR(CONVERT_TIMEZONE('UTC','Asia/Kolkata',CURRENT_TIMESTAMP())::DATE))
 ]]></snowflake:sql></snowflake:select>
         <foreach doc:name="Create idempotent notification records">
-            <snowflake:merge doc:name="Create notification if absent" config-ref="Snowflake_Config"><snowflake:sql><![CDATA[
+            <snowflake:update doc:name="Create notification if absent" config-ref="Snowflake_Config"><snowflake:sql><![CDATA[
 MERGE INTO BANK_NOTIFICATION_OUTBOX t USING (
 SELECT :notificationId AS NOTIFICATION_ID,:customerId AS CUSTOMER_ID,'BIRTHDAY_EMAIL' AS NOTIFICATION_TYPE,
 :businessDate AS BUSINESS_DATE,:fullname AS FULLNAME,:email AS EMAIL,:bankName AS BANKNAME,:mobileNumber AS MOBILENUMBER
@@ -235,7 +235,7 @@ VALUES (s.NOTIFICATION_ID,s.CUSTOMER_ID,s.NOTIFICATION_TYPE,s.BUSINESS_DATE,s.FU
 notificationId:"BIRTHDAY-" ++ (payload.CUSTOMER_ID as String) ++ "-" ++ (payload.BUSINESS_DATE as String),
 customerId:payload.CUSTOMER_ID,businessDate:payload.BUSINESS_DATE,fullname:payload.FULLNAME,email:payload.EMAIL,
 bankName:payload.BANKNAME,mobileNumber:payload.MOBILENUMBER default ""
-}]]]></snowflake:input-parameters></snowflake:merge>
+}]]]></snowflake:input-parameters></snowflake:update>
         </foreach>
         <logger level="INFO" doc:name="Outbox scan complete" message="BIRTHDAY OUTBOX | candidate scan completed; workers will claim records independently."/>
     </flow>
