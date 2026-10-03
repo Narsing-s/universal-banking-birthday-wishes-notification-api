@@ -55,14 +55,22 @@ main{padding:24px 20px 50px}.toolbar{display:flex;justify-content:space-between;
 "use strict";
 (function(){
   const params=new URLSearchParams(window.location.search);
-  const DEFAULT_API_BASE="https://birthday-wish-notification-api-east-615dv3.5sc6y6-3.usa-e2.cloudhub.io/api";
-  const API_BASE=(params.get("apiBase")||window.localStorage.getItem("birthdayApiBase")||DEFAULT_API_BASE).replace(/\/$/,"");
-  const API_URL=API_BASE+"/dashboard";
-  const CUSTOMERS_URL=API_BASE+"/customers";
-  const RUNTIME_URL=API_BASE+"/runtime-info";
-  const HEALTH_URL=API_BASE+"/health";
-  const TEST_RUN_URL=API_BASE+"/test/birthday-run";
-  const OUTBOX_URL=API_BASE+"/outbox";
+
+  const DEFAULT_API_BASES=[
+    "https://birthday-wish-notification-api-east-615dv3.5sc6y6-3.usa-e2.cloudhub.io/api",
+    "https://birthday-wish-notification-api-west-615dv3.5sc6y6-3.usa-e2.cloudhub.io/api",
+    "https://birthday-wish-notification-api-westb-615dv3.5sc6y6-3.usa-e2.cloudhub.io/api"
+  ];
+  const configuredApi=(params.get("apiBase")||window.localStorage.getItem("birthdayApiBase")||"").replace(/\/$/,"");
+  const API_BASES=configuredApi?[configuredApi]:DEFAULT_API_BASES;
+  let API_BASE=API_BASES[0];
+  let ACTIVE_REGION="UNKNOWN";
+  const API_URL=()=>API_BASE+"/dashboard";
+  const CUSTOMERS_URL=()=>API_BASE+"/customers";
+  const RUNTIME_URL=()=>API_BASE+"/runtime-info";
+  const HEALTH_URL=()=>API_BASE+"/health";
+  const TEST_RUN_URL=()=>API_BASE+"/test/birthday-run";
+  const OUTBOX_URL=()=>API_BASE+"/outbox";
   const data={metrics:{},customers:[],customerTotal:0,customerPage:1,customerPageSize:100,customerTotalPages:0,sentByDay:[],monthlyBirthdays:[]};
 
   function $(id){return document.getElementById(id);}
@@ -182,9 +190,9 @@ main{padding:24px 20px 50px}.toolbar{display:flex;justify-content:space-between;
     window.renderTable();
   }
 
-  async function fetchJson(url){
+  async function fetchJson(url,timeoutMs=8000){
     const controller=new AbortController();
-    const timer=setTimeout(function(){controller.abort();},15000);
+    const timer=setTimeout(function(){controller.abort();},timeoutMs);
     try{
       const response=await fetch(url,{method:"GET",headers:{Accept:"application/json"},cache:"no-store",signal:controller.signal});
       const text=await response.text();
@@ -193,9 +201,49 @@ main{padding:24px 20px 50px}.toolbar{display:flex;justify-content:space-between;
     }finally{clearTimeout(timer);}
   }
 
+  function regionName(url){
+    const host=new URL(url).hostname.toLowerCase();
+    if(host.includes("-east-"))return "EAST";
+    if(host.includes("-westb-"))return "WESTB";
+    if(host.includes("-west-"))return "WEST";
+    return "CUSTOM";
+  }
+
+  async function selectHealthyRegion(){
+    if(API_BASES.length===1){
+      const ok=await fetchJson(API_BASES[0]+"/dashboard",5000).catch(function(){return null;});
+      if(ok){API_BASE=API_BASES[0];ACTIVE_REGION=regionName(API_BASE);return true;}
+      return false;
+    }
+    const probes=API_BASES.map(function(base){
+      return fetchJson(base+"/health",5000).then(function(h){
+        if(String(h&&h.status||"").toUpperCase()!=="UP")throw new Error("degraded");
+        return {base:base};
+      });
+    });
+    try{
+      const winner=await Promise.any(probes);
+      API_BASE=winner.base;
+      ACTIVE_REGION=regionName(API_BASE);
+      window.localStorage.setItem("birthdayApiBase",API_BASE);
+      return true;
+    }catch(e){
+      const dataProbes=API_BASES.map(function(base){
+        return fetchJson(base+"/dashboard",5000).then(function(d){return {base:base,data:d};});
+      });
+      try{
+        const winner=await Promise.any(dataProbes);
+        API_BASE=winner.base;
+        ACTIVE_REGION=regionName(API_BASE);
+        window.localStorage.setItem("birthdayApiBase",API_BASE);
+        return true;
+      }catch(e2){return false;}
+    }
+  }
+
   async function loadRuntime(){
     try{
-      const r=await fetchJson(RUNTIME_URL);
+      const r=await fetchJson(RUNTIME_URL());
       $("runtimeInfo").textContent="Runtime: "+(r.runtime||"Mule")+" · "+(r.environment||"unknown")+" · "+(r.buildSha||"unknown").slice(0,12);
       return r;
     }catch(e){
@@ -206,7 +254,7 @@ main{padding:24px 20px 50px}.toolbar{display:flex;justify-content:space-between;
 
   async function checkHealth(){
     try{
-      const h=await fetchJson(HEALTH_URL);
+      const h=await fetchJson(HEALTH_URL());
       const ok=String(h.status||"").toUpperCase()==="UP" && String(h.snowflake||"").toUpperCase()==="UP";
       $("snowStatus").textContent=ok?"● Live":"● Degraded";
       $("snowStatus").style.color=ok?"var(--green)":"var(--red)";
@@ -225,7 +273,7 @@ main{padding:24px 20px 50px}.toolbar{display:flex;justify-content:space-between;
     button.disabled=true;
     button.textContent="Running…";
     try{
-      const response=await fetch(TEST_RUN_URL,{method:"POST",headers:{Accept:"application/json","Content-Type":"application/json"},cache:"no-store"});
+      const response=await fetch(TEST_RUN_URL(),{method:"POST",headers:{Accept:"application/json","Content-Type":"application/json"},cache:"no-store"});
       const text=await response.text();
       if(!response.ok)throw new Error("HTTP "+response.status+(text?" — "+text.slice(0,180):""));
       let result; try{result=JSON.parse(text);}catch(e){throw new Error("API returned non-JSON data");}
@@ -251,7 +299,7 @@ main{padding:24px 20px 50px}.toolbar{display:flex;justify-content:space-between;
 
   async function loadCustomersPage(page){
     const q=encodeURIComponent(($("search").value||"").trim());
-    const url=CUSTOMERS_URL+"?page="+page+"&limit="+data.customerPageSize+(q?"&search="+q:"");
+    const url=CUSTOMERS_URL()+"?page="+page+"&limit="+data.customerPageSize+(q?"&search="+q:"");
     const payload=await fetchJson(url);
     const list=Array.isArray(payload.customers)?payload.customers:[];
     data.customers=normalizeCustomers(list);
@@ -268,52 +316,53 @@ main{padding:24px 20px 50px}.toolbar{display:flex;justify-content:space-between;
 
   async function loadDashboard(){
     $("error").style.display="none";
-    $("apiStatus").textContent="CONNECTING API…";
-    $("updated").textContent="Loading live data…";
-    let dashboardOk=false;
-    const errors=[];
+    $("apiStatus").textContent="CONNECTING…";
+    $("updated").textContent="Finding a healthy regional API…";
+
+    const selected=await selectHealthyRegion();
+    if(!selected){
+      $("apiStatus").textContent="API OFFLINE";
+      $("apiStatus").style.background="#d1434333";
+      $("error").textContent="No regional MuleSoft API responded. Tried: "+API_BASES.map(regionName).join(", ");
+      $("error").style.display="block";
+      return;
+    }
+
+    $("apiStatus").textContent=ACTIVE_REGION+" API CONNECTED";
+    $("apiStatus").style.background="#0f9d6833";
+    $("updated").textContent="Loading live data from "+ACTIVE_REGION+"…";
+
     const results=await Promise.allSettled([
-      fetchJson(API_URL),
-      fetchJson(OUTBOX_URL),
+      fetchJson(API_URL()),
+      fetchJson(OUTBOX_URL()),
       loadCustomersPage(1)
     ]);
-    const dashboardResult=results[0];
-    if(dashboardResult.status==="fulfilled"){
-      const dashboard=dashboardResult.value;
+    const errors=[];
+    if(results[0].status==="fulfilled"){
+      const dashboard=results[0].value;
       data.metrics=dashboard.metrics||{};
       data.sentByDay=Array.isArray(dashboard.sentByDay)?dashboard.sentByDay:[];
       data.monthlyBirthdays=Array.isArray(dashboard.monthlyBirthdays)?dashboard.monthlyBirthdays:[];
-      dashboardOk=true;
       $("dashStatus").textContent="● Live"; $("dashStatus").style.color="var(--green)";
     }else{
-      errors.push("Dashboard: "+dashboardResult.reason.message);
+      errors.push("Dashboard: "+results[0].reason.message);
       $("dashStatus").textContent="● Error"; $("dashStatus").style.color="var(--red)";
     }
-    const outboxResult=results[1];
-    if(outboxResult.status==="fulfilled"){
-      const outboxPayload=outboxResult.value;
-      renderOutbox(outboxPayload&&Array.isArray(outboxPayload.notifications)?outboxPayload.notifications:[]);
-    }else{
-      $("outboxRows").innerHTML='<tr><td colspan="8">Outbox API error: '+escapeHtml(outboxResult.reason.message)+'</td></tr>';
-    }
-    const customersResult=results[2];
-    if(customersResult.status==="rejected"){
-      errors.push("Customers: "+customersResult.reason.message);
+    if(results[1].status==="fulfilled"){
+      const outbox=results[1].value;
+      renderOutbox(outbox&&Array.isArray(outbox.notifications)?outbox.notifications:[]);
+    }else errors.push("Outbox: "+results[1].reason.message);
+    if(results[2].status==="rejected"){
+      errors.push("Customers: "+results[2].reason.message);
       $("customerStatus").textContent="● Error"; $("customerStatus").style.color="var(--red)";
     }
+
     render();
-    if(dashboardOk){
-      $("apiStatus").textContent="API CONNECTED";
-      $("apiStatus").style.background="#0f9d6833";
-      $("lastRefresh").textContent=new Date().toLocaleString("en-IN");
-      $("updated").textContent="Live data refreshed: "+new Date().toLocaleString("en-IN");
-    }else{
-      $("apiStatus").textContent="API PARTIAL";
-      $("apiStatus").style.background="#d8890033";
-      $("updated").textContent="Customer data loaded; dashboard metrics unavailable";
-    }
+    $("lastRefresh").textContent=new Date().toLocaleString("en-IN");
+    $("updated").textContent="Live data refreshed: "+new Date().toLocaleString("en-IN")+" · "+ACTIVE_REGION;
+    $("runtimeInfo").textContent="Regional API: "+ACTIVE_REGION;
     if(errors.length){
-      $("error").textContent=errors.join(" | ")+" | API base: "+API_BASE;
+      $("error").textContent=errors.join(" | ")+" | Active region: "+ACTIVE_REGION;
       $("error").style.display="block";
     }
   }
