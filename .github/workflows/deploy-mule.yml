@@ -288,7 +288,15 @@ jobs:
           test -s target/classes/site/index.html || { echo "::error::Dashboard UI is missing from target/classes/site/index.html"; exit 1; }
           unzip -l "$artifact" | grep -q "site/index.html" || { echo "::error::Dashboard UI is missing from the Mule JAR"; exit 1; }
           # Mule packages the application XML at the application root; locate it from the immutable JAR.
-          mule_xml="$(unzip -Z1 "$artifact" | grep -E '(^|/)universal-banking-birthday-wishes-notification-api\\.xml
+          mule_xml="$(unzip -Z1 "$artifact" | grep -E '(^|/)universal-banking-birthday-wishes-notification-api\\.xml$' | head -n1 || true)"
+          if [ -z "$mule_xml" ]; then
+            echo "::error::Main Mule application XML was not found in the packaged JAR."
+            unzip -Z1 "$artifact" | grep -E '\\.xml$' | head -50 || true
+            exit 1
+          fi
+          echo "Packaged Mule XML: $mule_xml"
+          unzip -p "$artifact" "$mule_xml" > target/packaged-mule.xml
+          test -s target/packaged-mule.xml
           for route in "/api/dashboard" "/api/customers" "/api/outbox" "/api/runtime-info" "/api/health" "/api/health/dependencies"; do
             grep -q "path=\"$route\"" target/packaged-mule.xml || {
               echo "::error::Required route missing from packaged JAR: $route"
