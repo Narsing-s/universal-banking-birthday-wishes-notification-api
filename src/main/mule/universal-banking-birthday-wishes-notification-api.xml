@@ -27,7 +27,7 @@ http://www.mulesoft.org/schema/mule/sns http://www.mulesoft.org/schema/mule/sns/
 		<http:request-connection host="api.ultramsg.com" />
 	</http:request-config>
 <flow name="birthday-dashboard-api" doc:id="birthday-dashboard-api">
-		<http:listener config-ref="Dashboard_HTTP_Listener" path="/api/dashboard" allowedMethods="GET" doc:name="Dashboard API" >
+		<http:listener config-ref="Dashboard_HTTP_Listener" path="/api/dashboard" allowedMethods="GET,OPTIONS" doc:name="Dashboard API" >
 		<http:response>
 		    <http:headers><![CDATA[#[{
 		      "Access-Control-Allow-Origin": "*",
@@ -42,9 +42,9 @@ http://www.mulesoft.org/schema/mule/sns http://www.mulesoft.org/schema/mule/sns/
 SELECT
   COUNT(*) AS TOTAL_CUSTOMERS,
   COUNT_IF(MONTH(DATEOFBIRTH) = MONTH(CURRENT_DATE()) AND DAY(DATEOFBIRTH) = DAY(CURRENT_DATE())) AS BIRTHDAYS_TODAY,
-  COUNT_IF(BIRTHDAY_WISH_SENT = TRUE) AS BIRTHDAY_WISHES_SENT,
+  COUNT_IF(BIRTHDAY_WISH_SENT_DATE IS NOT NULL AND YEAR(BIRTHDAY_WISH_SENT_DATE) = YEAR(CONVERT_TIMEZONE('UTC', 'Asia/Kolkata', CURRENT_TIMESTAMP())::DATE)) AS BIRTHDAY_WISHES_SENT,
   COUNT_IF(BIRTHDAY_WISH_SENT_DATE >= DATEADD(day, -30, CURRENT_TIMESTAMP())) AS SENT_LAST_30_DAYS,
-  COUNT_IF(BIRTHDAY_WISH_SENT IS NULL OR BIRTHDAY_WISH_SENT = FALSE) AS PENDING
+  COUNT_IF(BIRTHDAY_WISH_SENT_DATE IS NULL OR YEAR(BIRTHDAY_WISH_SENT_DATE) < YEAR(CONVERT_TIMEZONE('UTC', 'Asia/Kolkata', CURRENT_TIMESTAMP())::DATE)) AS PENDING
 FROM BANK_CUSTOMER_DATA
 WHERE STATUS = 'ACTIVE'
 ]]></snowflake:sql>
@@ -66,7 +66,12 @@ WHERE STATUS = 'ACTIVE'
     DATEADD(year, DATEDIFF(year, DATEOFBIRTH, CURRENT_DATE()), DATEOFBIRTH) BETWEEN CURRENT_DATE() AND DATEADD(day, 30, CURRENT_DATE())
     OR DATEADD(year, DATEDIFF(year, DATEOFBIRTH, CURRENT_DATE()) + 1, DATEOFBIRTH) BETWEEN CURRENT_DATE() AND DATEADD(day, 30, CURRENT_DATE())
   )
-ORDER BY DATEOFBIRTH
+ORDER BY
+  CASE
+    WHEN DATE_PART('DOY', DATEOFBIRTH) >= DATE_PART('DOY', CONVERT_TIMEZONE('UTC', 'Asia/Kolkata', CURRENT_TIMESTAMP())::DATE)
+      THEN DATE_PART('DOY', DATEOFBIRTH)
+    ELSE DATE_PART('DOY', DATEOFBIRTH) + 366
+  END
 ]]></snowflake:sql>
 		</snowflake:select>
 		<set-variable variableName="upcomingCustomers" value="#[payload]" doc:name="Store upcoming customers" />
@@ -128,7 +133,7 @@ var customers = []
 	</flow>
 
 	<flow name="birthday-customers-api" doc:id="birthday-customers-api">
-		<http:listener config-ref="Dashboard_HTTP_Listener" path="/api/customers" allowedMethods="GET" doc:name="Customers API" >
+		<http:listener config-ref="Dashboard_HTTP_Listener" path="/api/customers" allowedMethods="GET,OPTIONS" doc:name="Customers API" >
 		<http:response>
 		    <http:headers><![CDATA[#[{
 		      "Access-Control-Allow-Origin": "*",
@@ -180,7 +185,7 @@ output application/json
 	<flow name="universal-banking-birthday-wishes-notification-api" doc:id="f1452827-76ca-4d4f-9234-79ae25f4b2f3" >
 		<scheduler doc:name="Scheduler" doc:id="7db259d4-8126-4848-aee9-63e882ca1fb2" >
 			<scheduling-strategy >
-				<fixed-frequency frequency="1" timeUnit="MINUTES"/>
+				<cron expression="0 0 9 * * ?" timeZone="Asia/Kolkata"/>
 			</scheduling-strategy>
 		</scheduler>
 		<logger level="INFO" doc:name="Start universal banking Birthday wishes flow" doc:id="c0e6d6d6-719f-4b9c-a1df-9808610ddac5" message="===========Start universal banking Birthday wishes flow==========="/>
@@ -284,6 +289,11 @@ output application/x-www-form-urlencoded
 }]]]></http:query-params>
 							</http:request>
 							<logger level="INFO" doc:name="UltraMsg Response" doc:id="44556e12-6174-4ea9-8539-edf76ea0aadf" message="#[write(payload,'application/json')]" />
+								</when>
+								<otherwise>
+									<logger level="WARN" doc:name="Skip WhatsApp when mobile number is empty" message="Birthday WhatsApp notification skipped because MOBILENUMBER is empty." />
+								</otherwise>
+							</choice>
 						</route>
 					</scatter-gather>
 		</foreach>
