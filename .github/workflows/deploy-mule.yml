@@ -283,6 +283,13 @@ jobs:
           fi
 
           echo "Artifact: $artifact"
+
+          # The dashboard must be physically packaged inside the immutable Mule JAR.
+          # A successful Maven build is not enough if the static resource is absent.
+          test -s target/classes/site/index.html || { echo "::error::Dashboard UI is missing from target/classes/site/index.html"; exit 1; }
+          unzip -l "$artifact" | grep -q "site/index.html" || { echo "::error::Dashboard UI is missing from the Mule JAR"; exit 1; }
+          echo "Dashboard UI packaging verified: site/index.html"
+
           (cd target && sha256sum "$(basename "$artifact")" | tee mule-artifact.sha256)
 
           jar_name="$(basename "$artifact")"
