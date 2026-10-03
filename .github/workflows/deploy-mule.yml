@@ -174,6 +174,10 @@ jobs:
           sha256sum "$artifact" | tee target/mule-artifact.sha256
 
       - name: Publish application to Anypoint Exchange
+        env:
+          OID: ${{ secrets.ANYPOINT_ORG_ID }}
+          CID: ${{ secrets.ANYPOINT_CLIENT_ID }}
+          CSEC: ${{ secrets.ANYPOINT_CLIENT_SECRET }}
         run: bash .github/scripts/publish-exchange-v101.sh
 
       - name: Upload immutable build artifact
@@ -391,6 +395,10 @@ jobs:
     name: 📊 Deployment Summary
     runs-on: ubuntu-latest
     needs:
+      - permission-check
+      - validate-config
+      - build-artifact
+      - artifact-check
       - deploy-west
       - deploy-westb
       - deploy-east
@@ -403,8 +411,10 @@ jobs:
             echo ""
             echo "| Stage | Status |"
             echo "|---|---|"
-            echo "| 🔐 User permission | ${{ needs.deploy-west.result != 'skipped' && 'passed' || 'blocked' }} |"
-            echo "| 📦 Artifact validation | ${{ needs.deploy-west.result != 'skipped' && 'passed' || 'blocked' }} |"
+            echo "| 🔐 User permission | ${{ needs.permission-check.result }} |"
+            echo "| 🧩 Configuration validation | ${{ needs.validate-config.result }} |"
+            echo "| 📦 Build artifact | ${{ needs.build-artifact.result }} |"
+            echo "| 🧪 Artifact validation | ${{ needs.artifact-check.result }} |"
             echo "| 🌎 WEST | ${{ needs.deploy-west.result }} |"
             echo "| 🌎 WESTB | ${{ needs.deploy-westb.result }} |"
             echo "| 🌎 EAST | ${{ needs.deploy-east.result }} |"
