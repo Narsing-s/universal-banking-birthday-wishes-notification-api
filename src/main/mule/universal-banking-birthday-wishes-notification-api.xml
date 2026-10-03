@@ -240,6 +240,69 @@ bankName:payload.BANKNAME,mobileNumber:payload.MOBILENUMBER default ""
         <logger level="INFO" doc:name="Outbox scan complete" message="BIRTHDAY OUTBOX | candidate scan completed; workers will claim records independently."/>
     </flow>
 
+    <flow name="birthday-test-run-api" doc:name="Manual Birthday Test Trigger">
+        <http:listener config-ref="Dashboard_HTTP_Listener" path="/api/test/birthday-run" allowedMethods="POST,OPTIONS" doc:name="Manual Birthday Run">
+            <http:response>
+                <http:headers><![CDATA[#[{
+                    "Access-Control-Allow-Origin": "*",
+                    "Access-Control-Allow-Methods": "POST,OPTIONS",
+                    "Access-Control-Allow-Headers": "Content-Type,Authorization"
+                }]]]></http:headers>
+            </http:response>
+        </http:listener>
+        <logger level="INFO" doc:name="Manual birthday trigger" message='#[ "MANUAL BIRTHDAY RUN | region=" ++ (p("region.name") default "unknown") ++ " | buildSha=" ++ (p("build.sha") default "unknown") ]'/>
+        <snowflake:select doc:name="Select today's birthday candidates" config-ref="Snowflake_Config">
+            <snowflake:sql><![CDATA[
+SELECT CUSTOMER_ID,FULLNAME,DATEOFBIRTH,MOBILENUMBER,BANKNAME,EMAIL,
+TO_CHAR(CONVERT_TIMEZONE('UTC','Asia/Kolkata',CURRENT_TIMESTAMP())::DATE,'YYYY-MM-DD') AS BUSINESS_DATE
+FROM BANK_CUSTOMER_DATA
+WHERE MONTH(DATEOFBIRTH)=MONTH(CONVERT_TIMEZONE('UTC','Asia/KolkATA',CURRENT_TIMESTAMP())::DATE)
+AND DAY(DATEOFBIRTH)=DAY(CONVERT_TIMEZONE('UTC','Asia/KolkATA',CURRENT_TIMESTAMP())::DATE)
+AND STATUS='ACTIVE' AND EMAIL IS NOT NULL
+AND (BIRTHDAY_WISH_SENT_DATE IS NULL OR YEAR(BIRTHDAY_WISH_SENT_DATE)<YEAR(CONVERT_TIMEZONE('UTC','Asia/KolkATA',CURRENT_TIMESTAMP())::DATE))
+]]></snowflake:sql>
+        </snowflake:select>
+        <set-variable variableName="candidateCount" value="#[sizeOf(payload)]" doc:name="Candidate count"/>
+        <foreach doc:name="Create idempotent notification records">
+            <snowflake:update doc:name="Create notification if absent" config-ref="Snowflake_Config">
+                <snowflake:sql><![CDATA[
+MERGE INTO BANK_NOTIFICATION_OUTBOX t USING (
+SELECT :notificationId AS NOTIFICATION_ID,:customerId AS CUSTOMER_ID,'BIRTHDAY_EMAIL' AS NOTIFICATION_TYPE,
+:businessDate AS BUSINESS_DATE,:fullname AS FULLNAME,:email AS EMAIL,:bankName AS BANKNAME,:mobileNumber AS MOBILENUMBER
+) s ON t.NOTIFICATION_ID=s.NOTIFICATION_ID
+WHEN NOT MATCHED THEN INSERT
+(NOTIFICATION_ID,CUSTOMER_ID,NOTIFICATION_TYPE,BUSINESS_DATE,FULLNAME,EMAIL,BANKNAME,MOBILENUMBER,STATUS,ATTEMPT_COUNT,NEXT_ATTEMPT_AT,CREATED_AT,UPDATED_AT)
+VALUES (s.NOTIFICATION_ID,s.CUSTOMER_ID,s.NOTIFICATION_TYPE,s.BUSINESS_DATE,s.FULLNAME,s.EMAIL,s.BANKNAME,s.MOBILENUMBER,'PENDING',0,CURRENT_TIMESTAMP(),CURRENT_TIMESTAMP(),CURRENT_TIMESTAMP())
+]]></snowflake:sql>
+                <snowflake:input-parameters><![CDATA[#[{
+notificationId:"BIRTHDAY-" ++ (payload.CUSTOMER_ID as String) ++ "-" ++ (payload.BUSINESS_DATE as String),
+customerId:payload.CUSTOMER_ID,businessDate:payload.BUSINESS_DATE,fullname:payload.FULLNAME,email:payload.EMAIL,
+bankName:payload.BANKNAME,mobileNumber:payload.MOBILENUMBER default ""
+}]]]></snowflake:input-parameters>
+            </snowflake:update>
+        </foreach>
+        <ee:transform doc:name="Build manual trigger response">
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+    success: true,
+    trigger: "manual",
+    region: p("region.name") default "unknown",
+    environment: p("env") default "unknown",
+    buildSha: p("build.sha") default "manual-or-unknown",
+    businessDate: (now() >> "Asia/Kolkata") as String {format: "yyyy-MM-dd"},
+    candidatesFound: vars.candidateCount default 0,
+    message: "Birthday candidates were placed into the shared outbox. The notification worker will process them within its next polling cycle.",
+    triggeredAt: now()
+}
+]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+        <logger level="INFO" doc:name="Manual birthday run complete" message='#[ "MANUAL BIRTHDAY RUN COMPLETE | candidates=" ++ ((vars.candidateCount default 0) as String) ++ " | region=" ++ (p("region.name") default "unknown") ]'/>
+    </flow>
+
     <flow name="birthday-notification-worker" doc:name="Shared Birthday Notification Worker">
         <scheduler doc:name="Worker Poller"><scheduling-strategy><fixed-frequency frequency="1" timeUnit="MINUTES"/></scheduling-strategy></scheduler>
         <set-variable variableName="workerId" value="#[uuid()]" doc:name="Worker identity"/>
