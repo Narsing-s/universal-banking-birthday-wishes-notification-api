@@ -20,3 +20,6 @@ smtp:
 
 ultramsg:
   token: "${ULTRAMSG_TOKEN}"
+
+build:
+  sha: "${BUILD_SHA}"
