@@ -263,9 +263,15 @@ jobs:
           SMTP_USER: ${{ secrets.SMTP_USER }}
           SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
           ULTRAMSG_TOKEN: ${{ secrets.ULTRAMSG_TOKEN }}
+          CLOUDHUB_APPLICATION_NAME: ${{ secrets.CLOUDHUB_APPLICATION_NAME }}
+          CLOUDHUB_ENVIRONMENT: ${{ secrets.CLOUDHUB_ENVIRONMENT }}
+          CLOUDHUB_TARGET: ${{ secrets.CLOUDHUB_TARGET_WEST || secrets.CLOUDHUB_TARGET }}
+          CLOUDHUB_REPLICAS: ${{ secrets.CLOUDHUB_REPLICAS }}
+          CLOUDHUB_VCORES: ${{ secrets.CLOUDHUB_VCORES }}
         run: |
           set -euo pipefail
           artifact=$(find artifact -maxdepth 1 -type f -name '*.jar' | head -n1)
+          test -n "$CLOUDHUB_TARGET"
 
           mvn --batch-mode mule:deploy \
             -Dmule.artifact="$artifact" \
@@ -273,11 +279,11 @@ jobs:
             -Denv.ANYPOINT_ORG_ID="$ANYPOINT_ORG_ID" \
             -Danypoint.client.id="$ANYPOINT_CLIENT_ID" \
             -Danypoint.client.secret="$ANYPOINT_CLIENT_SECRET" \
-            -Dcloudhub.application.name="${{ secrets.CLOUDHUB_APPLICATION_NAME }}-west" \
-            -Dcloudhub.environment="${{ secrets.CLOUDHUB_ENVIRONMENT }}" \
-            -Dcloudhub.target="${{ secrets.CLOUDHUB_TARGET_WEST }}" \
-            -Dcloudhub.replicas="${{ secrets.CLOUDHUB_REPLICAS }}" \
-            -Dcloudhub.vcores="${{ secrets.CLOUDHUB_VCORES }}"
+            -Dcloudhub.application.name="${CLOUDHUB_APPLICATION_NAME}-west" \
+            -Dcloudhub.environment="$CLOUDHUB_ENVIRONMENT" \
+            -Dcloudhub.target="$CLOUDHUB_TARGET" \
+            -Dcloudhub.replicas="$CLOUDHUB_REPLICAS" \
+            -Dcloudhub.vcores="$CLOUDHUB_VCORES"
 
   deploy-westb:
     name: 🌎 Deploy — WESTB
@@ -318,9 +324,15 @@ jobs:
           SMTP_USER: ${{ secrets.SMTP_USER }}
           SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
           ULTRAMSG_TOKEN: ${{ secrets.ULTRAMSG_TOKEN }}
+          CLOUDHUB_APPLICATION_NAME: ${{ secrets.CLOUDHUB_APPLICATION_NAME }}
+          CLOUDHUB_ENVIRONMENT: ${{ secrets.CLOUDHUB_ENVIRONMENT }}
+          CLOUDHUB_TARGET: ${{ secrets.CLOUDHUB_TARGET_WESTB || secrets.CLOUDHUB_TARGET }}
+          CLOUDHUB_REPLICAS: ${{ secrets.CLOUDHUB_REPLICAS }}
+          CLOUDHUB_VCORES: ${{ secrets.CLOUDHUB_VCORES }}
         run: |
           set -euo pipefail
           artifact=$(find artifact -maxdepth 1 -type f -name '*.jar' | head -n1)
+          test -n "$CLOUDHUB_TARGET"
 
           mvn --batch-mode mule:deploy \
             -Dmule.artifact="$artifact" \
@@ -328,11 +340,11 @@ jobs:
             -Denv.ANYPOINT_ORG_ID="$ANYPOINT_ORG_ID" \
             -Danypoint.client.id="$ANYPOINT_CLIENT_ID" \
             -Danypoint.client.secret="$ANYPOINT_CLIENT_SECRET" \
-            -Dcloudhub.application.name="${{ secrets.CLOUDHUB_APPLICATION_NAME }}-westb" \
-            -Dcloudhub.environment="${{ secrets.CLOUDHUB_ENVIRONMENT }}" \
-            -Dcloudhub.target="${{ secrets.CLOUDHUB_TARGET_WESTB || secrets.CLOUDHUB_TARGET }}" \
-            -Dcloudhub.replicas="${{ secrets.CLOUDHUB_REPLICAS }}" \
-            -Dcloudhub.vcores="${{ secrets.CLOUDHUB_VCORES }}"
+            -Dcloudhub.application.name="${CLOUDHUB_APPLICATION_NAME}-westb" \
+            -Dcloudhub.environment="$CLOUDHUB_ENVIRONMENT" \
+            -Dcloudhub.target="$CLOUDHUB_TARGET" \
+            -Dcloudhub.replicas="$CLOUDHUB_REPLICAS" \
+            -Dcloudhub.vcores="$CLOUDHUB_VCORES"
 
   deploy-east:
     name: 🌎 Deploy — EAST
@@ -373,9 +385,15 @@ jobs:
           SMTP_USER: ${{ secrets.SMTP_USER }}
           SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
           ULTRAMSG_TOKEN: ${{ secrets.ULTRAMSG_TOKEN }}
+          CLOUDHUB_APPLICATION_NAME: ${{ secrets.CLOUDHUB_APPLICATION_NAME }}
+          CLOUDHUB_ENVIRONMENT: ${{ secrets.CLOUDHUB_ENVIRONMENT }}
+          CLOUDHUB_TARGET: ${{ secrets.CLOUDHUB_TARGET_EAST || secrets.CLOUDHUB_TARGET }}
+          CLOUDHUB_REPLICAS: ${{ secrets.CLOUDHUB_REPLICAS }}
+          CLOUDHUB_VCORES: ${{ secrets.CLOUDHUB_VCORES }}
         run: |
           set -euo pipefail
           artifact=$(find artifact -maxdepth 1 -type f -name '*.jar' | head -n1)
+          test -n "$CLOUDHUB_TARGET"
 
           mvn --batch-mode mule:deploy \
             -Dmule.artifact="$artifact" \
@@ -383,11 +401,11 @@ jobs:
             -Denv.ANYPOINT_ORG_ID="$ANYPOINT_ORG_ID" \
             -Danypoint.client.id="$ANYPOINT_CLIENT_ID" \
             -Danypoint.client.secret="$ANYPOINT_CLIENT_SECRET" \
-            -Dcloudhub.application.name="${{ secrets.CLOUDHUB_APPLICATION_NAME }}-east" \
-            -Dcloudhub.environment="${{ secrets.CLOUDHUB_ENVIRONMENT }}" \
-            -Dcloudhub.target="${{ secrets.CLOUDHUB_TARGET_EAST || secrets.CLOUDHUB_TARGET }}" \
-            -Dcloudhub.replicas="${{ secrets.CLOUDHUB_REPLICAS }}" \
-            -Dcloudhub.vcores="${{ secrets.CLOUDHUB_VCORES }}"
+            -Dcloudhub.application.name="${CLOUDHUB_APPLICATION_NAME}-east" \
+            -Dcloudhub.environment="$CLOUDHUB_ENVIRONMENT" \
+            -Dcloudhub.target="$CLOUDHUB_TARGET" \
+            -Dcloudhub.replicas="$CLOUDHUB_REPLICAS" \
+            -Dcloudhub.vcores="$CLOUDHUB_VCORES"
 
   deployment-summary:
     name: 📊 Deployment Summary
