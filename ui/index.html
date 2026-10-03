@@ -61,7 +61,6 @@ main{padding:24px 20px 50px}.toolbar{display:flex;justify-content:space-between;
   const CUSTOMERS_URL=API_BASE+"/customers";
   const RUNTIME_URL=API_BASE+"/runtime-info";
   const HEALTH_URL=API_BASE+"/health";
-  const DEPENDENCY_HEALTH_URL=API_BASE+"/health";
   const TEST_RUN_URL=API_BASE+"/test/birthday-run";
   const OUTBOX_URL=API_BASE+"/outbox";
   const data={metrics:{},customers:[],sentByDay:[],monthlyBirthdays:[]};
@@ -200,14 +199,14 @@ main{padding:24px 20px 50px}.toolbar{display:flex;justify-content:space-between;
       $("runtimeInfo").textContent="Runtime: "+(r.runtime||"Mule")+" · "+(r.environment||"unknown")+" · "+(r.buildSha||"unknown").slice(0,12);
       return r;
     }catch(e){
-      $("runtimeInfo").textContent="Runtime: unavailable · "+e.message;
+      $("runtimeInfo").textContent="Runtime: metadata unavailable (optional endpoint);
       return null;
     }
   }
 
   async function checkHealth(){
     try{
-      const h=await fetchJson(DEPENDENCY_HEALTH_URL);
+      const h=await fetchJson(HEALTH_URL);
       const ok=String(h.status||"").toUpperCase()==="UP" && String(h.snowflake||"").toUpperCase()==="UP";
       $("snowStatus").textContent=ok?"● Live":"● Degraded";
       $("snowStatus").style.color=ok?"var(--green)":"var(--red)";
@@ -216,7 +215,7 @@ main{padding:24px 20px 50px}.toolbar{display:flex;justify-content:space-between;
     }catch(e){
       $("snowStatus").textContent="● Error";
       $("snowStatus").style.color="var(--red)";
-      showAction("Health check failed: "+e.message,true);
+      showAction("Health endpoint is not exposed by this deployment. Dashboard and Customers APIs are live.",false);
       return null;
     }
   }
