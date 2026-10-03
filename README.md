@@ -11,7 +11,7 @@ The **Universal Banking Birthday Wishes Notification API** is a MuleSoft schedul
 - Daily automated birthday notification process
 - Scheduler-based execution
 - Retrieves active customers celebrating their birthday
-- Prevents duplicate birthday emails within the same year
+- Prevents duplicate birthday notifications within the same year
 - Personalized HTML email template
 - Gmail SMTP integration
 - Snowflake database integration
@@ -69,7 +69,7 @@ The **Universal Banking Birthday Wishes Notification API** is a MuleSoft schedul
 
 ### Scheduler
 
-Executes automatically every minute (configurable).
+Executes automatically once per day at 09:00 AM Asia/Kolkata (configurable).
 
 ### Retrieve Birthday Customers
 
@@ -395,3 +395,12 @@ The application expects:
 - `ULTRAMSG_TOKEN`
 
 This keeps deployment credentials and runtime integration credentials outside source control.
+
+
+## Reliability fixes
+
+- Birthday selection uses Asia/Kolkata calendar date consistently.
+- Scheduler runs once daily instead of once per minute.
+- Dashboard sent/pending metrics are calculated for the current birthday year.
+- WhatsApp delivery is skipped when a customer has no mobile number.
+- Customer status and birthday-send tracking remain database-driven; no credentials are committed to source control.
