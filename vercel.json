@@ -2,15 +2,15 @@
   "rewrites": [
     {
       "source": "/",
-      "destination": "/ui/index.html"
+      "destination": "/src/main/resources/site/index.html"
     },
     {
       "source": "/ui",
-      "destination": "/ui/index.html"
+      "destination": "/src/main/resources/site/index.html"
     },
     {
       "source": "/ui/",
-      "destination": "/ui/index.html"
+      "destination": "/src/main/resources/site/index.html"
     }
   ]
 }
