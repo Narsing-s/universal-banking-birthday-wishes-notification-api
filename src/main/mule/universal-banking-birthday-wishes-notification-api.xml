@@ -69,7 +69,7 @@ output application/json
 			<snowflake:sql><![CDATA[
 SELECT
   COUNT(*) AS TOTAL_CUSTOMERS,
-  COUNT_IF(MONTH(DATEOFBIRTH) = MONTH(CURRENT_DATE()) AND DAY(DATEOFBIRTH) = DAY(CURRENT_DATE())) AS BIRTHDAYS_TODAY,
+  COUNT_IF(MONTH(DATEOFBIRTH) = MONTH(CONVERT_TIMEZONE('UTC', 'Asia/Kolkata', CURRENT_TIMESTAMP())::DATE) AND DAY(DATEOFBIRTH) = DAY(CONVERT_TIMEZONE('UTC', 'Asia/Kolkata', CURRENT_TIMESTAMP())::DATE)) AS BIRTHDAYS_TODAY,
   COUNT_IF(BIRTHDAY_WISH_SENT_DATE IS NOT NULL AND YEAR(BIRTHDAY_WISH_SENT_DATE) = YEAR(CONVERT_TIMEZONE('UTC', 'Asia/Kolkata', CURRENT_TIMESTAMP())::DATE)) AS BIRTHDAY_WISHES_SENT,
   COUNT_IF(BIRTHDAY_WISH_SENT_DATE >= DATEADD(day, -30, CURRENT_TIMESTAMP())) AS SENT_LAST_30_DAYS,
   COUNT_IF(BIRTHDAY_WISH_SENT_DATE IS NULL OR YEAR(BIRTHDAY_WISH_SENT_DATE) < YEAR(CONVERT_TIMEZONE('UTC', 'Asia/Kolkata', CURRENT_TIMESTAMP())::DATE)) AS PENDING
@@ -393,8 +393,68 @@ UPDATE BANK_CUSTOMER_DATA SET BIRTHDAY_WISH_SENT=TRUE,BIRTHDAY_WISH_SENT_DATE=CU
         </foreach>
     </flow>
 
+    <flow name="notification-outbox-api" doc:name="Notification Outbox API">
+        <http:listener config-ref="Dashboard_HTTP_Listener" path="/api/outbox" allowedMethods="GET,OPTIONS" doc:name="Notification Outbox">
+            <http:response>
+                <http:headers><![CDATA[#[{
+                    "Access-Control-Allow-Origin": "*",
+                    "Access-Control-Allow-Methods": "GET,OPTIONS",
+                    "Access-Control-Allow-Headers": "Content-Type,Authorization"
+                }]]]></http:headers>
+            </http:response>
+        </http:listener>
+        <snowflake:select doc:name="Load recent notification outbox" config-ref="Snowflake_Config">
+            <snowflake:sql><![CDATA[
+SELECT NOTIFICATION_ID,CUSTOMER_ID,NOTIFICATION_TYPE,BUSINESS_DATE,FULLNAME,EMAIL,BANKNAME,
+       STATUS,ATTEMPT_COUNT,NEXT_ATTEMPT_AT,OWNER,LEASE_UNTIL,ERROR_MESSAGE,SENT_AT,CREATED_AT,UPDATED_AT
+FROM BANK_NOTIFICATION_OUTBOX
+ORDER BY CREATED_AT DESC
+LIMIT 100
+]]></snowflake:sql>
+        </snowflake:select>
+        <ee:transform doc:name="Build outbox response">
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+    source: "Snowflake",
+    generatedAt: now(),
+    count: sizeOf(payload),
+    notifications: payload map (n) -> {
+        notificationId: n.NOTIFICATION_ID,
+        customerId: n.CUSTOMER_ID,
+        notificationType: n.NOTIFICATION_TYPE,
+        businessDate: n.BUSINESS_DATE,
+        name: n.FULLNAME,
+        email: n.EMAIL,
+        bankName: n.BANKNAME,
+        status: n.STATUS,
+        attemptCount: (n.ATTEMPT_COUNT default 0) as Number,
+        nextAttemptAt: n.NEXT_ATTEMPT_AT,
+        owner: n.OWNER,
+        leaseUntil: n.LEASE_UNTIL,
+        errorMessage: n.ERROR_MESSAGE,
+        sentAt: n.SENT_AT,
+        createdAt: n.CREATED_AT,
+        updatedAt: n.UPDATED_AT
+    }
+}
+]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+    </flow>
+
     <flow name="health-api" doc:name="Health API">
-        <http:listener config-ref="Dashboard_HTTP_Listener" path="/api/health" allowedMethods="GET,OPTIONS" doc:name="Health"/>
+        <http:listener config-ref="Dashboard_HTTP_Listener" path="/api/health" allowedMethods="GET,OPTIONS" doc:name="Health">
+            <http:response>
+                <http:headers><![CDATA[#[{
+                    "Access-Control-Allow-Origin": "*",
+                    "Access-Control-Allow-Methods": "GET,OPTIONS",
+                    "Access-Control-Allow-Headers": "Content-Type,Authorization"
+                }]]]></http:headers>
+            </http:response>
+        </http:listener>
         <ee:transform doc:name="Build health response"><ee:message><ee:set-payload><![CDATA[%dw 2.0
 output application/json
 ---
@@ -403,7 +463,15 @@ output application/json
     </flow>
 
     <flow name="health-dependencies-api" doc:name="Dependency Health API">
-        <http:listener config-ref="Dashboard_HTTP_Listener" path="/api/health/dependencies" allowedMethods="GET,OPTIONS" doc:name="Dependency Health"/>
+        <http:listener config-ref="Dashboard_HTTP_Listener" path="/api/health/dependencies" allowedMethods="GET,OPTIONS" doc:name="Dependency Health">
+            <http:response>
+                <http:headers><![CDATA[#[{
+                    "Access-Control-Allow-Origin": "*",
+                    "Access-Control-Allow-Methods": "GET,OPTIONS",
+                    "Access-Control-Allow-Headers": "Content-Type,Authorization"
+                }]]]></http:headers>
+            </http:response>
+        </http:listener>
         <snowflake:select doc:name="Verify Snowflake" config-ref="Snowflake_Config"><snowflake:sql><![CDATA[SELECT CURRENT_TIMESTAMP() AS CHECKED_AT]]></snowflake:sql></snowflake:select>
         <ee:transform doc:name="Build dependency health response"><ee:message><ee:set-payload><![CDATA[%dw 2.0
 output application/json
