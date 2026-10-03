@@ -330,7 +330,7 @@ jobs:
     name: 🌎 Deploy — WESTB
     runs-on: ubuntu-latest
     needs: artifact-check
-    environment: ${{ inputs.environment }}b
+    environment: ${{ inputs.environment }}
     steps:
       - name: Checkout deployment descriptor
         uses: actions/checkout@v4
@@ -391,7 +391,7 @@ jobs:
             -Dcloudhub.environment="$CLOUDHUB_ENVIRONMENT" \
             -Dcloudhub.target="$CLOUDHUB_TARGET" \
             -Dcloudhub.replicas="$CLOUDHUB_REPLICAS" \
-            -Dcloudhub.vcores="$CLOUDHUB_VCORES"
+            -Dcloudhub.vcores="$CLOUDHUB_VCORES" \
             -Denv.REGION_NAME="$REGION_NAME"
 
   deploy-east:
