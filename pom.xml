@@ -14,6 +14,17 @@
     <mule.maven.plugin.version>4.3.0</mule.maven.plugin.version>
   </properties>
   <build>
+      <resources>
+        <resource>
+          <directory>src/main/resources</directory>
+          <filtering>false</filtering>
+        </resource>
+        <resource>
+          <directory>ui</directory>
+          <targetPath>site</targetPath>
+          <filtering>false</filtering>
+        </resource>
+      </resources>
     <plugins>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
