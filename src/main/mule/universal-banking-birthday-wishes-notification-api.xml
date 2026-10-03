@@ -100,6 +100,7 @@ ORDER BY
       THEN DATE_PART('DOY', DATEOFBIRTH)
     ELSE DATE_PART('DOY', DATEOFBIRTH) + 366
   END
+LIMIT 200
 ]]></snowflake:sql>
 		</snowflake:select>
 		<set-variable variableName="upcomingCustomers" value="#[payload]" doc:name="Store upcoming customers" />
@@ -184,6 +185,7 @@ SELECT
 FROM BANK_CUSTOMER_DATA
 WHERE STATUS = 'ACTIVE'
 ORDER BY FULLNAME
+LIMIT 1000
 ]]></snowflake:sql>
 		</snowflake:select>
 		<ee:transform doc:name="Build live customer list">
