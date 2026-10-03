@@ -287,6 +287,7 @@ jobs:
           SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
           ULTRAMSG_TOKEN: ${{ secrets.ULTRAMSG_TOKEN }}
           BUILD_SHA: ${{ github.sha }}
+          REGION_NAME: WEST
           CLOUDHUB_APPLICATION_NAME: ${{ secrets.CLOUDHUB_APPLICATION_NAME }}
           CLOUDHUB_ENVIRONMENT: ${{ secrets.CLOUDHUB_ENVIRONMENT }}
           CLOUDHUB_TARGET: ${{ secrets.CLOUDHUB_TARGET_WEST || secrets.CLOUDHUB_TARGET }}
@@ -312,6 +313,7 @@ jobs:
             -Dcloudhub.target="$CLOUDHUB_TARGET" \
             -Dcloudhub.replicas="$CLOUDHUB_REPLICAS" \
             -Dcloudhub.vcores="$CLOUDHUB_VCORES"
+            -Denv.REGION_NAME="$REGION_NAME"
 
   deploy-westb:
     name: 🌎 Deploy — WESTB
@@ -353,6 +355,7 @@ jobs:
           SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
           ULTRAMSG_TOKEN: ${{ secrets.ULTRAMSG_TOKEN }}
           BUILD_SHA: ${{ github.sha }}
+          REGION_NAME: WESTB
           CLOUDHUB_APPLICATION_NAME: ${{ secrets.CLOUDHUB_APPLICATION_NAME }}
           CLOUDHUB_ENVIRONMENT: ${{ secrets.CLOUDHUB_ENVIRONMENT }}
           CLOUDHUB_TARGET: ${{ secrets.CLOUDHUB_TARGET_WESTB || secrets.CLOUDHUB_TARGET }}
@@ -378,6 +381,7 @@ jobs:
             -Dcloudhub.target="$CLOUDHUB_TARGET" \
             -Dcloudhub.replicas="$CLOUDHUB_REPLICAS" \
             -Dcloudhub.vcores="$CLOUDHUB_VCORES"
+            -Denv.REGION_NAME="$REGION_NAME"
 
   deploy-east:
     name: 🌎 Deploy — EAST
@@ -419,6 +423,7 @@ jobs:
           SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
           ULTRAMSG_TOKEN: ${{ secrets.ULTRAMSG_TOKEN }}
           BUILD_SHA: ${{ github.sha }}
+          REGION_NAME: EAST
           CLOUDHUB_APPLICATION_NAME: ${{ secrets.CLOUDHUB_APPLICATION_NAME }}
           CLOUDHUB_ENVIRONMENT: ${{ secrets.CLOUDHUB_ENVIRONMENT }}
           CLOUDHUB_TARGET: ${{ secrets.CLOUDHUB_TARGET_EAST || secrets.CLOUDHUB_TARGET }}
@@ -444,6 +449,7 @@ jobs:
             -Dcloudhub.target="$CLOUDHUB_TARGET" \
             -Dcloudhub.replicas="$CLOUDHUB_REPLICAS" \
             -Dcloudhub.vcores="$CLOUDHUB_VCORES"
+            -Denv.REGION_NAME="$REGION_NAME"
 
   deployment-summary:
     name: 📊 Deployment Summary
