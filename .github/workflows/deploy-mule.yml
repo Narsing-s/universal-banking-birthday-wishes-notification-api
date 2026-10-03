@@ -112,6 +112,18 @@ jobs:
           ANYPOINT_ORG_ID: ${{ secrets.ANYPOINT_ORG_ID }}
           ANYPOINT_CLIENT_ID: ${{ secrets.ANYPOINT_CLIENT_ID }}
           ANYPOINT_CLIENT_SECRET: ${{ secrets.ANYPOINT_CLIENT_SECRET }}
+          DB_SF_NAME: ${{ secrets.DB_SF_NAME }}
+          DB_SF_WAREHOUSE: ${{ secrets.DB_SF_WAREHOUSE }}
+          DB_SF_DATABASE: ${{ secrets.DB_SF_DATABASE }}
+          DB_SF_SCHEMA: ${{ secrets.DB_SF_SCHEMA }}
+          DB_SF_USER: ${{ secrets.DB_SF_USER }}
+          DB_SF_PASSWORD: ${{ secrets.DB_SF_PASSWORD }}
+          DB_SF_ROLE: ${{ secrets.DB_SF_ROLE }}
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          ULTRAMSG_TOKEN: ${{ secrets.ULTRAMSG_TOKEN }}
         run: >
           mvn --batch-mode
           mule:deploy
