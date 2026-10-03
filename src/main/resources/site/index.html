@@ -316,14 +316,15 @@ main{padding:24px 20px 50px}.toolbar{display:flex;justify-content:space-between;
     $("apiStatus").textContent="CONNECTING…";
     $("updated").textContent="Finding a healthy regional API…";
 
-    const selected=await selectHealthyRegion();
-    if(!selected){
-      $("apiStatus").textContent="API OFFLINE";
-      $("apiStatus").style.background="#d1434333";
-      $("error").textContent="No regional MuleSoft API responded. Tried: "+API_BASES.map(regionName).join(", ");
-      $("error").style.display="block";
-      return;
-    }
+    try {
+      const selected=await selectHealthyRegion();
+      if(!selected){
+        $("apiStatus").textContent="API OFFLINE";
+        $("apiStatus").style.background="#d1434333";
+        $("error").textContent="No regional MuleSoft API responded. Tried: "+API_BASES.map(regionName).join(", ");
+        $("error").style.display="block";
+        return;
+      }
 
     $("apiStatus").textContent=ACTIVE_REGION+" API CONNECTED";
     $("apiStatus").style.background="#0f9d6833";
@@ -383,10 +384,12 @@ main{padding:24px 20px 50px}.toolbar{display:flex;justify-content:space-between;
       $("error").textContent=errors.join(" | ")+" | Active region: "+ACTIVE_REGION;
       $("error").style.display="block";
     }
-    refreshInFlight=false;
     if(!options.noSchedule){
       clearTimeout(autoRefreshTimer);
       autoRefreshTimer=setTimeout(function(){loadDashboard();},AUTO_REFRESH_MS);
+    }
+    } finally {
+      refreshInFlight=false;
     }
   }
 
