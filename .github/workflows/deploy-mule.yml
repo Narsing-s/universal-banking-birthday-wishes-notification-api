@@ -56,8 +56,8 @@ jobs:
           CLOUDHUB_APPLICATION_NAME: ${{ secrets.CLOUDHUB_APPLICATION_NAME }}
           CLOUDHUB_ENVIRONMENT: ${{ secrets.CLOUDHUB_ENVIRONMENT }}
           CLOUDHUB_TARGET_WEST: ${{ secrets.CLOUDHUB_TARGET_WEST || secrets.CLOUDHUB_TARGET }}
-          CLOUDHUB_TARGET_WESTB: ${{ secrets.CLOUDHUB_TARGET_WESTB }}
-          CLOUDHUB_TARGET_EAST: ${{ secrets.CLOUDHUB_TARGET_EAST }}
+          CLOUDHUB_TARGET_WESTB: ${{ secrets.CLOUDHUB_TARGET_WESTB || secrets.CLOUDHUB_TARGET }}
+          CLOUDHUB_TARGET_EAST: ${{ secrets.CLOUDHUB_TARGET_EAST || secrets.CLOUDHUB_TARGET }}
           CLOUDHUB_REPLICAS: ${{ secrets.CLOUDHUB_REPLICAS }}
           CLOUDHUB_VCORES: ${{ secrets.CLOUDHUB_VCORES }}
           DB_SF_NAME: ${{ secrets.DB_SF_NAME }}
@@ -330,7 +330,7 @@ jobs:
             -Danypoint.client.secret="$ANYPOINT_CLIENT_SECRET" \
             -Dcloudhub.application.name="${{ secrets.CLOUDHUB_APPLICATION_NAME }}-westb" \
             -Dcloudhub.environment="${{ secrets.CLOUDHUB_ENVIRONMENT }}" \
-            -Dcloudhub.target="${{ secrets.CLOUDHUB_TARGET_WESTB }}" \
+            -Dcloudhub.target="${{ secrets.CLOUDHUB_TARGET_WESTB || secrets.CLOUDHUB_TARGET }}" \
             -Dcloudhub.replicas="${{ secrets.CLOUDHUB_REPLICAS }}" \
             -Dcloudhub.vcores="${{ secrets.CLOUDHUB_VCORES }}"
 
@@ -385,7 +385,7 @@ jobs:
             -Danypoint.client.secret="$ANYPOINT_CLIENT_SECRET" \
             -Dcloudhub.application.name="${{ secrets.CLOUDHUB_APPLICATION_NAME }}-east" \
             -Dcloudhub.environment="${{ secrets.CLOUDHUB_ENVIRONMENT }}" \
-            -Dcloudhub.target="${{ secrets.CLOUDHUB_TARGET_EAST }}" \
+            -Dcloudhub.target="${{ secrets.CLOUDHUB_TARGET_EAST || secrets.CLOUDHUB_TARGET }}" \
             -Dcloudhub.replicas="${{ secrets.CLOUDHUB_REPLICAS }}" \
             -Dcloudhub.vcores="${{ secrets.CLOUDHUB_VCORES }}"
 
