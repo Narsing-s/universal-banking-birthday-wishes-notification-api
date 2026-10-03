@@ -3,7 +3,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>${env.ANYPOINT_ORG_ID}</groupId>
   <artifactId>universal-banking-birthday-wishes-notification-api</artifactId>
-  <version>1.0.2</version>
+  <version>1.0.3</version>
   <packaging>mule-application</packaging>
   <name>universal-banking-birthday-wishes-notification-api</name>
   <description>Universal banking birthday wishes notification Mule application</description>
