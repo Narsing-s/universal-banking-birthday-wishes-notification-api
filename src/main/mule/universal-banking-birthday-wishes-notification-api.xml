@@ -261,10 +261,12 @@ WHERE MONTH(DATEOFBIRTH) =
 							<logger level="INFO" doc:name="End Flow" doc:id="0acd73b1-2320-4a93-bea7-1a1671ec87d2" message="=================Email sent to the user successfully=============" />
 						</route>
 						<route >
-							<set-variable value="#[vars.mobileNumber]" doc:name="mobileNumber" doc:id="4917a153-d0ae-48e9-a35f-3345a106772d" variableName="mobileNumber"/>
-							<logger level="INFO" doc:name="Before Ultramsg service" doc:id="ce6c7119-df39-4f39-883b-cdc5e16ec99d" message="===========Before Ultramsg service===========" />
-							<http:request method="POST" doc:name="Request" doc:id="b18d0e81-68f4-4839-8207-36cbfaeaefdf" config-ref="HTTP_Request_configuration" path="/instance184029/messages/chat">
-								<http:body><![CDATA[#[%dw 2.0
+							<choice doc:name="Send WhatsApp only when mobile number exists">
+								<when expression="#[!isEmpty((vars.mobileNumber default '') as String)]">
+									<set-variable value="#[vars.mobileNumber]" doc:name="mobileNumber" variableName="mobileNumber"/>
+									<logger level="INFO" doc:name="Before Ultramsg service" doc:id="ce6c7119-df39-4f39-883b-cdc5e16ec99d" message="===========Before Ultramsg service===========" />
+									<http:request method="POST" doc:name="Request" doc:id="b18d0e81-68f4-4839-8207-36cbfaeaefdf" config-ref="HTTP_Request_configuration" path="/instance184029/messages/chat">
+										<http:body><![CDATA[#[%dw 2.0
 output application/x-www-form-urlencoded
 ---
 {
@@ -273,22 +275,20 @@ output application/x-www-form-urlencoded
     body:
         "🎉 *Happy Birthday, " ++ (vars.name default "Customer") ++ "!* 🎂\n\n" ++
         "Dear *" ++ (vars.name default "Customer") ++ "*,\n\n" ++
-        "Warm Birthday Wishes from *" ++ (vars.bankName default "Our Bank") ++ "*.\n\n" ++
-        "May this special day bring happiness, good health, success, and prosperity.\n\n" ++
+        "Warm Birthday Wishes from *" ++ (vars.bankName default "Our Bank") ++ "* .\n\n" ++
+        "May this day bring happiness, good health, success, and prosperity.\n\n" ++
         "Thank you for choosing *" ++ (vars.bankName default "Our Bank") ++ "* as your trusted banking partner.\n\n" ++
-        "We truly value your trust and look forward to serving you for many more years.\n\n" ++
         "🎂 Have a wonderful birthday! 🎉\n\n" ++
-        "Regards,\n" ++
-        "*Customer Relationship Team*\n" ++
+        "Regards,\n*Customer Relationship Team*\n" ++
         (vars.bankName default "Our Bank")
 }]]]></http:body>
 										<http:query-params><![CDATA[#[output application/json
 ---
 {
-	token : "${ultramsg.token}"
+    token : vars.ultramsgToken
 }]]]></http:query-params>
-							</http:request>
-							<logger level="INFO" doc:name="UltraMsg Response" doc:id="44556e12-6174-4ea9-8539-edf76ea0aadf" message="#[write(payload,'application/json')]" />
+									</http:request>
+									<logger level="INFO" doc:name="UltraMsg Response" doc:id="44556e12-6174-4ea9-8539-edf76ea0aadf" message="#[write(payload,'application/json')]" />
 								</when>
 								<otherwise>
 									<logger level="WARN" doc:name="Skip WhatsApp when mobile number is empty" message="Birthday WhatsApp notification skipped because MOBILENUMBER is empty." />
