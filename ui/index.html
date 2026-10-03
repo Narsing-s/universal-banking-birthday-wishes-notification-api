@@ -47,6 +47,7 @@ main{padding:24px 20px 50px}.toolbar{display:flex;justify-content:space-between;
 <div class="card"><h2>📅 Monthly birthday volume</h2><div class="chart" id="monthChart"></div></div>
 <div class="card"><h2>⚙️ Integration status</h2><p>Scheduler <b style="color:var(--green)">● Configured</b></p><p>Snowflake <b id="snowStatus" style="color:var(--amber)">● Checking…</b></p><p>Dashboard API <b id="dashStatus" style="color:var(--amber)">● Checking…</b></p><p>Customers API <b id="customerStatus" style="color:var(--amber)">● Checking…</b></p><p>SMTP <b style="color:var(--green)">● Configured</b></p><p>Last refresh<br><b id="lastRefresh">—</b></p></div>
 </section>
+<section class="card" style="margin-top:16px"><h2>📨 Notification outbox — latest 100</h2><div class="tablewrap"><table><thead><tr><th>Notification</th><th>Customer</th><th>Type</th><th>Status</th><th>Attempts</th><th>Created</th><th>Sent</th><th>Error</th></tr></thead><tbody id="outboxRows"><tr><td colspan="8">Loading…</td></tr></tbody></table></div></section>
 <section class="card" style="margin-top:16px"><h2>👥 All active customers from Snowflake</h2><div class="filters"><input id="search" placeholder="Search customer..." autocomplete="off"><select id="range"><option value="all">All active customers</option><option value="today">Birthday today</option><option value="30">Birthdays in next 30 days</option><option value="7">Birthdays in next 7 days</option><option value="sent">Birthday wish already sent</option><option value="pending">Birthday wish pending</option></select></div><div class="tablewrap"><table><thead><tr><th>Customer</th><th>Bank</th><th>Account</th><th>Birthday</th><th>Days left</th><th>Email</th><th>Wish status</th><th>Sent date</th></tr></thead><tbody id="rows"><tr><td colspan="8">Loading…</td></tr></tbody></table></div></section>
 <div class="notice"><b>Live data:</b> Customer records and metrics are loaded from the MuleSoft APIs. No demo customer records are embedded in this page.</div>
 </main>
@@ -62,6 +63,7 @@ main{padding:24px 20px 50px}.toolbar{display:flex;justify-content:space-between;
   const HEALTH_URL=API_BASE+"/health";
   const DEPENDENCY_HEALTH_URL=API_BASE+"/health/dependencies";
   const TEST_RUN_URL=API_BASE+"/test/birthday-run";
+  const OUTBOX_URL=API_BASE+"/outbox";
   const data={metrics:{},customers:[],sentByDay:[],monthlyBirthdays:[]};
 
   function $(id){return document.getElementById(id);}
@@ -81,6 +83,16 @@ main{padding:24px 20px 50px}.toolbar{display:flex;justify-content:space-between;
       sentDate:c.sentDate??c.BIRTHDAY_WISH_SENT_DATE??null
     };
   }
+  function renderOutbox(list){
+    const rows=Array.isArray(list)?list:[];
+    $("outboxRows").innerHTML=rows.length?rows.map(function(n){
+      const status=String(n.status||"UNKNOWN").toUpperCase();
+      const cls=status==="SENT"?"sent":status==="FAILED"||status==="ERROR"?"error":"pending";
+      const err=n.errorMessage||"";
+      return '<tr><td><b>'+escapeHtml(n.notificationId||"—")+'</b></td><td>'+escapeHtml(n.name||n.customerId||"—")+'</td><td>'+escapeHtml(n.notificationType||"—")+'</td><td><span class="status '+cls+'">'+escapeHtml(status)+'</span></td><td>'+money(n.attemptCount||0)+'</td><td>'+dateText(n.createdAt)+'</td><td>'+dateText(n.sentAt)+'</td><td title="'+escapeHtml(err)+'">'+escapeHtml(err?err.slice(0,90):"—")+'</td></tr>';
+    }).join(""):'<tr><td colspan="8">No notification outbox records found.</td></tr>';
+  }
+
   function normalizeCustomers(payload){
     let list=[];
 
@@ -256,6 +268,13 @@ main{padding:24px 20px 50px}.toolbar{display:flex;justify-content:space-between;
     }catch(e){
       errors.push("Dashboard: "+e.message);
       $("dashStatus").textContent="● Error"; $("dashStatus").style.color="var(--red)";
+    }
+
+    try{
+      const outboxPayload=await fetchJson(OUTBOX_URL);
+      renderOutbox(outboxPayload&&Array.isArray(outboxPayload.notifications)?outboxPayload.notifications:[]);
+    }catch(e){
+      $("outboxRows").innerHTML='<tr><td colspan="8">Outbox API error: '+escapeHtml(e.message)+'</td></tr>';
     }
 
     try{
