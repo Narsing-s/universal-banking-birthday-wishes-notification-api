@@ -56,7 +56,7 @@ main{padding:24px 20px 50px}.toolbar{display:flex;justify-content:space-between;
 (function(){
   const params=new URLSearchParams(window.location.search);
 
-  const DEFAULT_API_BASES=[];
+  const DEFAULT_API_BASES=[window.location.origin+"/api"];
   const API_CONFIG_URL=new URL("api-config.json",document.baseURI).href;
   const configuredApi=(params.get("apiBase")||"").replace(/\/$/,"");
   const rememberedApi=(window.localStorage.getItem("birthdayApiBase")||"").replace(/\/$/,"");
@@ -88,12 +88,17 @@ main{padding:24px 20px 50px}.toolbar{display:flex;justify-content:space-between;
         API_BASE=API_BASES[0];
         $("apiStatus").textContent="LIVE API CONFIG";
       } else {
-        throw new Error("api-config.json contains no live MuleSoft API bases");
+        // When the dashboard is served directly by the Mule app, the API is same-origin.
+        API_BASES=[window.location.origin+"/api"];
+        API_BASE=API_BASES[0];
+        $("apiStatus").textContent="SAME-ORIGIN API";
       }
     }catch(e){
-      // The UI must never silently fall back to stale CloudHub URLs.
-      API_BASES=[];
-      API_BASE=undefined;
+      // Keep the same-origin Mule endpoint as a safe fallback when api-config.json
+      // has not yet been populated by CI/CD.
+      API_BASES=[window.location.origin+"/api"];
+      API_BASE=API_BASES[0];
+      $("apiStatus").textContent="SAME-ORIGIN API";
     }
   }
 
