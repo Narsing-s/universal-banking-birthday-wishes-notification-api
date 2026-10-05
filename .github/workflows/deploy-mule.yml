@@ -19,7 +19,7 @@ on:
         default: dev
 
 permissions:
-  contents: read
+  contents: write
   actions: read
 
 concurrency:
@@ -584,6 +584,47 @@ jobs:
             -Dcloudhub.vcores="$CLOUDHUB_VCORES" \
             -Denv.REGION_NAME="$REGION_NAME"
 
+  publish-api-config:
+    name: 🔗 Publish Live CloudHub API Endpoints
+    runs-on: ubuntu-latest
+    needs:
+      - deploy-west
+      - deploy-westb
+      - deploy-east
+    if: needs.deploy-west.result == 'success' && needs.deploy-westb.result == 'success' && needs.deploy-east.result == 'success'
+    environment: dev
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Resolve deployed CloudHub URLs
+        env:
+          ANYPOINT_CLIENT_ID: ${{ secrets.ANYPOINT_CLIENT_ID }}
+          ANYPOINT_CLIENT_SECRET: ${{ secrets.ANYPOINT_CLIENT_SECRET }}
+          ANYPOINT_ORG_ID: ${{ secrets.ANYPOINT_ORG_ID }}
+          CLOUDHUB_ENVIRONMENT: ${{ secrets.CLOUDHUB_ENVIRONMENT }}
+          CLOUDHUB_TARGET: ${{ secrets.CLOUDHUB_TARGET }}
+          CLOUDHUB_APPLICATION_NAME: ${{ secrets.CLOUDHUB_APPLICATION_NAME }}
+        run: bash .github/scripts/resolve-api-config.sh
+      - name: Upload resolved endpoint configuration
+        uses: actions/upload-artifact@v4
+        with:
+          name: live-api-config-${{ github.sha }}
+          path: ui/api-config.json
+          if-no-files-found: error
+          retention-days: 14
+      - name: Publish endpoint configuration to repository
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          sha="$(gh api "repos/${GITHUB_REPOSITORY}/contents/ui/api-config.json" --jq '.sha')"
+          content="$(base64 -w0 ui/api-config.json)"
+          gh api --method PUT "repos/${GITHUB_REPOSITORY}/contents/ui/api-config.json" \
+            -f message="chore: refresh live API endpoints [skip ci]" \
+            -f content="${content}" \
+            -f sha="${sha}" \
+            -f branch="main"
+
   smoke-test-regions:
     name: 🩺 Post-Deployment Smoke Test — 3 Regions
     runs-on: ubuntu-latest
@@ -592,17 +633,24 @@ jobs:
       - deploy-west
       - deploy-westb
       - deploy-east
-    if: always() && needs.deploy-west.result == 'success' && needs.deploy-westb.result == 'success' && needs.deploy-east.result == 'success'
+      - publish-api-config
+    if: always() && needs.deploy-west.result == 'success' && needs.deploy-westb.result == 'success' && needs.deploy-east.result == 'success' && needs.publish-api-config.result == 'success'
+    permissions:
+      contents: read
     steps:
       - name: Verify live UI and API endpoints
         shell: bash
         run: |
           set -euo pipefail
 
+          config="$(gh api "repos/${GITHUB_REPOSITORY}/contents/ui/api-config.json" --jq '.content' | base64 -d)"
+          mapfile -t bases < <(jq -r '.apiBases[]' <<<"${config}")
+          test "$(printf '%s\n' "${bases[@]}" | wc -l)" -eq 3 || { echo "::error::Expected three live API bases."; exit 1; }
+
           regions=(
-            "WEST|https://birthday-wish-notification-api-west-615dv3.5sc6y6-3.usa-e2.cloudhub.io"
-            "WESTB|https://birthday-wish-notification-api-westb-615dv3.5sc6y6-3.usa-e2.cloudhub.io"
-            "EAST|https://birthday-wish-notification-api-east-615dv3.5sc6y6-3.usa-e2.cloudhub.io"
+            "WEST|${bases[0]}"
+            "WESTB|${bases[1]}"
+            "EAST|${bases[2]}"
           )
 
           smoke() {
