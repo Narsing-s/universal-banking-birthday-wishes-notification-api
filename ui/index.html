@@ -79,6 +79,23 @@ main{padding:24px 20px 50px}.toolbar{display:flex;justify-content:space-between;
   const OUTBOX_URL=()=>API_BASE+"/outbox";
   const data={metrics:{},customers:[],customerTotal:0,customerPage:1,customerPageSize:100,customerTotalPages:0,sentByDay:[],monthlyBirthdays:[]};
 
+  async function loadApiConfig(){
+    if(configuredApi) return;
+    try{
+      const response=await fetch(API_CONFIG_URL+"?_ts="+Date.now(),{cache:"no-store",headers:{Accept:"application/json"}});
+      if(!response.ok) throw new Error("HTTP "+response.status);
+      const cfg=await response.json();
+      const bases=Array.isArray(cfg.apiBases)?cfg.apiBases.map(function(v){return String(v||"").replace(/\/$/,"");}).filter(Boolean):[];
+      if(bases.length){
+        API_BASES=Array.from(new Set([...bases,...DEFAULT_API_BASES].filter(Boolean)));
+        API_BASE=API_BASES[0];
+        $("apiStatus").textContent="LIVE API CONFIG";
+      }
+    }catch(e){
+      // Keep the bundled fallback list when the runtime endpoint config is unavailable.
+    }
+  }
+
   function $(id){return document.getElementById(id);}
   function money(v){return Number(v||0).toLocaleString("en-IN");}
   function maskAccount(v){const s=String(v==null?"":v);return s.length>4?"****"+s.slice(-4):s;}
@@ -420,9 +437,11 @@ main{padding:24px 20px 50px}.toolbar{display:flex;justify-content:space-between;
   document.addEventListener("visibilitychange",function(){
     if(document.visibilityState==="visible") loadDashboard();
   });
-  loadRuntime();
-  loadDashboard();
-  checkHealth();
+  loadApiConfig().finally(function(){
+    loadRuntime();
+    loadDashboard();
+    checkHealth();
+  });
   // Poll the live MuleSoft endpoints directly. This is intentionally independent
   // from the scheduler/worker: database changes are reflected in the UI even when
   // the birthday scheduler has not run. Cache-busting is applied in fetchJson().
