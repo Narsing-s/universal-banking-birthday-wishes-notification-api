@@ -8,6 +8,10 @@ set -euo pipefail
 : "${CLOUDHUB_TARGET:?CLOUDHUB_TARGET is required}"
 : "${CLOUDHUB_APPLICATION_NAME:?CLOUDHUB_APPLICATION_NAME is required}"
 
+# CloudHub 2.0 application discovery is handled through Anypoint CLI.
+npm install -g anypoint-cli-v4-public >/dev/null 2>&1
+anypoint-cli-v4 --version
+
 token_response="$(curl -sS -X POST 'https://anypoint.mulesoft.com/accounts/api/v2/oauth2/token' -H 'Content-Type: application/x-www-form-urlencoded' --data-urlencode 'grant_type=client_credentials' --data-urlencode "client_id=${ANYPOINT_CLIENT_ID}" --data-urlencode "client_secret=${ANYPOINT_CLIENT_SECRET}")"
 token="$(jq -r '.access_token // empty' <<<"${token_response}")"
 test -n "${token}" || { echo '::error::Unable to obtain Anypoint access token.'; exit 1; }
@@ -21,7 +25,37 @@ deployments="$(curl -sS --fail-with-body -H "Authorization: Bearer ${token}" -H 
 
 resolve_domain() {
   local app="$1"
-  jq -r --arg app "${app}" '.. | objects | select(.name? == $app) | .. | strings | select(test("\\.cloudhub\\.io\\.?$"))' <<<"${deployments}" | head -n1
+  local app_id
+  local described
+
+  # CloudHub 2.0 exposes the generated public URL in the application
+  # description payload. Use the CLI because the Application Manager
+  # deployment list does not consistently expose the endpoint field.
+  app_id="$(anypoint-cli-v4 runtime-mgr:application:list --output json |
+    jq -r --arg app "${app}" '
+      .. | objects |
+      select(((.name? // .applicationName? // "") == $app) and (.id? != null)) |
+      .id
+' | head -n1)
+
+  if [ -n "${app_id}" ] && [ "${app_id}" != "null" ]; then
+    described="$(anypoint-cli-v4 runtime-mgr:application:describe "${app_id}" --output json 2>/dev/null || true)"
+    jq -r '
+      .. | strings
+      | select(test("^https?://[^[:space:]]+\\.cloudhub\\.io/?$"))
+      | sub("/$"; "")
+    ' <<<"${described}" | head -n1
+  fi
+
+  # Fallback: inspect the deployment-manager response and tolerate a
+  # trailing slash on generated CloudHub URLs.
+  jq -r --arg app "${app}" '
+    .. | objects
+    | select((.name? // .applicationName? // "") == $app)
+    | .. | strings
+    | select(test("^https?://[^[:space:]]+\\.cloudhub\\.io/?$"))
+    | sub("/$"; "")
+  ' <<<"${deployments}" | head -n1
 }
 
 mkdir -p ui
