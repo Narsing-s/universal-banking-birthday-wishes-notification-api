@@ -110,6 +110,34 @@ jobs:
           echo "Applications to inspect:"
           cat applications.txt
 
+          # CloudHub 2 management operations use the application ID.
+          all_apps="$(anypoint-cli-v4 runtime-mgr:application:list --output json)"
+          : > application-map.txt
+          while IFS= read -r app; do
+            app_id="$(jq -r --arg name "$app" '
+              .. | objects |
+              select(
+                ((.name? // .applicationName? // "") == $name)
+                and (.id? != null)
+              ) | .id
+            ' <<<"$all_apps" | head -n1)"
+
+            if [ -z "$app_id" ] || [ "$app_id" = "null" ]; then
+              echo "::warning::CloudHub 2 application not found: $app"
+              continue
+            fi
+
+            printf '%s|%s\n' "$app" "$app_id" >> application-map.txt
+          done < application-map.txt
+
+          if [ ! -s application-map.txt ]; then
+            echo "::error::None of the configured applications were found in the selected CloudHub 2 environment."
+            exit 1
+          fi
+
+          echo "Resolved CloudHub 2 application IDs:"
+          cat application-map.txt
+
       - name: Check application status
         id: status
         shell: bash
@@ -124,10 +152,10 @@ jobs:
           echo "| Application | Status | Action |" >> "$GITHUB_STEP_SUMMARY"
           echo "|---|---|---|" >> "$GITHUB_STEP_SUMMARY"
 
-          while IFS= read -r app; do
-            echo "Checking: $app"
+          while IFS="|" read -r app app_id; do
+            echo "Checking: $app ($app_id)"
 
-            raw="$(anypoint-cli-v4 runtime-mgr:application:describe "$app" --output json 2>/dev/null || true)"
+            raw="$(anypoint-cli-v4 runtime-mgr:application:describe "$app_id" --output json 2>/dev/null || true)"
 
             if [ -z "$raw" ]; then
               echo "::warning::Could not describe $app. It may not exist in the selected Anypoint environment."
@@ -167,7 +195,7 @@ jobs:
 
           echo "Starting controlled recovery."
 
-          while IFS= read -r app; do
+          while IFS="|" read -r app app_id; do
             raw="$(anypoint-cli-v4 runtime-mgr:application:describe "$app" --output json 2>/dev/null || true)"
             [ -n "$raw" ] || continue
 
