@@ -339,6 +339,44 @@ mvn clean deploy
 
 ---
 
+## Automatic API Auto-Healing
+
+The repository also includes an automatic recovery workflow:
+
+```text
+.github/workflows/auto-heal-mule.yml
+```
+
+It checks the configured regional Mule applications every 5 minutes and, when an application is reported as stopped/down/failed, uses Anypoint Platform CLI to start or restart it. It then verifies the application status for up to two minutes before marking recovery successful or failed.
+
+### Auto-Healing Configuration
+
+The workflow uses the existing GitHub Environment secrets:
+
+- `ANYPOINT_CLIENT_ID`
+- `ANYPOINT_CLIENT_SECRET`
+- `ANYPOINT_ORG_ID`
+- `CLOUDHUB_ENVIRONMENT`
+- `CLOUDHUB_APPLICATION_NAME`
+
+By default it checks the three applications already used by this repository:
+
+```text
+<CLOUDHUB_APPLICATION_NAME>-west
+<CLOUDHUB_APPLICATION_NAME>-westb
+<CLOUDHUB_APPLICATION_NAME>-east
+```
+
+If application names differ, create the optional GitHub Environment variable `AUTOHEAL_APPLICATIONS` as a comma-separated list, for example:
+
+```text
+bank-api-west,bank-api-westb,bank-api-east
+```
+
+The workflow can also be started manually from **GitHub → Actions → MuleSoft Auto-Heal — Bring Down APIs Back Up**, where you can select the environment and optionally provide one application name.
+
+The auto-heal workflow does not build or redeploy a new artifact. It performs a controlled runtime recovery first, which avoids unnecessarily changing the production artifact when an application is only stopped or temporarily unhealthy.
+
 ## Author
 
 **Narsing Rao Beesetti**
