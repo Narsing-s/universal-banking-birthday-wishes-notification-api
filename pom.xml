@@ -42,6 +42,7 @@
             <uri>https://anypoint.mulesoft.com</uri>
             <provider>MC</provider>
             <muleVersion>${app.runtime}</muleVersion>
+            <javaVersion>17</javaVersion>
             <connectedAppClientId>${anypoint.client.id}</connectedAppClientId>
             <connectedAppClientSecret>${anypoint.client.secret}</connectedAppClientSecret>
             <connectedAppGrantType>client_credentials</connectedAppGrantType>
