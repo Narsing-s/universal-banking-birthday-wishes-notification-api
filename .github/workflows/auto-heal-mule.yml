@@ -127,7 +127,7 @@ jobs:
           while IFS= read -r app; do
             echo "Checking: $app"
 
-            raw="$(anypoint-cli-v4 runtime-mgr:cloudhub-application:describe "$app" --output json 2>/dev/null || true)"
+            raw="$(anypoint-cli-v4 runtime-mgr:application:describe "$app" --output json 2>/dev/null || true)"
 
             if [ -z "$raw" ]; then
               echo "::warning::Could not describe $app. It may not exist in the selected Anypoint environment."
@@ -168,7 +168,7 @@ jobs:
           echo "Starting controlled recovery."
 
           while IFS= read -r app; do
-            raw="$(anypoint-cli-v4 runtime-mgr:cloudhub-application:describe "$app" --output json 2>/dev/null || true)"
+            raw="$(anypoint-cli-v4 runtime-mgr:application:describe "$app" --output json 2>/dev/null || true)"
             [ -n "$raw" ] || continue
 
             status_value="$(jq -r '(.status // .Status // .application.status // .applicationStatus // "UNKNOWN") | tostring | ascii_upcase' <<<"$raw" 2>/dev/null || echo UNKNOWN)"
@@ -177,13 +177,9 @@ jobs:
               STOPPED|DOWN|FAILED|UNDEPLOYED|NOT_RUNNING)
                 echo "Recovering $app (current status: $status_value)"
 
-                # Prefer start for a stopped application.
-                # If the platform reports FAILED/DOWN, restart is used where supported.
-                if [ "$status_value" = "STOPPED" ] || [ "$status_value" = "UNDEPLOYED" ]; then
-                  anypoint-cli-v4 runtime-mgr:cloudhub-application:start "$app"
-                else
-                  anypoint-cli-v4 runtime-mgr:cloudhub-application:restart "$app"
-                fi
+                # CloudHub 2.0 exposes start/stop operations rather than the
+                # CloudHub 1 restart command. Start is the safe recovery action.
+                anypoint-cli-v4 runtime-mgr:application:start "$app"
                 ;;
               *)
                 echo "$app is no longer in a recoverable-down state; skipping."
@@ -206,7 +202,7 @@ jobs:
             failed=0
 
             while IFS= read -r app; do
-              raw="$(anypoint-cli-v4 runtime-mgr:cloudhub-application:describe "$app" --output json 2>/dev/null || true)"
+              raw="$(anypoint-cli-v4 runtime-mgr:application:describe "$app" --output json 2>/dev/null || true)"
 
               if [ -z "$raw" ]; then
                 echo "::warning::Unable to read status for $app."
