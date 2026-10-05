@@ -10,6 +10,8 @@ set -euo pipefail
 
 # CloudHub 2.0 application discovery is handled through Anypoint CLI.
 npm install -g anypoint-cli-v4-public >/dev/null 2>&1
+export ANYPOINT_ORG="${ANYPOINT_ORG_ID}"
+export ANYPOINT_ENV="${CLOUDHUB_ENVIRONMENT}"
 anypoint-cli-v4 --version
 
 token_response="$(curl -sS -X POST 'https://anypoint.mulesoft.com/accounts/api/v2/oauth2/token' -H 'Content-Type: application/x-www-form-urlencoded' --data-urlencode 'grant_type=client_credentials' --data-urlencode "client_id=${ANYPOINT_CLIENT_ID}" --data-urlencode "client_secret=${ANYPOINT_CLIENT_SECRET}")"
