@@ -56,6 +56,7 @@ resolve_domain() {
   local app="$1"
   local app_id=""
   local described=""
+  local described_domain=""
 
   app_id="$(
     anypoint-cli-v4 runtime-mgr:application:list --output json |
@@ -72,12 +73,17 @@ resolve_domain() {
       anypoint-cli-v4 runtime-mgr:application:describe "${app_id}" --output json 2>/dev/null || true
     )"
 
-    jq -r '
-      .. | strings
-      | select(test("^https?://[^[:space:]]+\\.cloudhub\\.io/?$"))
-      | sub("/$"; "")
-    ' <<<"${described}" | head -n1
-    return 0
+    described_domain="$(
+      jq -r '
+        .. | strings
+        | select(test("^https?://[^[:space:]]+\\.cloudhub\\.io/?$"))
+        | sub("/$"; "")
+      ' <<<"${described}" | head -n1
+    )"
+    if [ -n "${described_domain}" ]; then
+      printf '%s\\n' "${described_domain}"
+      return 0
+    fi
   fi
 
   jq -r --arg app "${app}" '
