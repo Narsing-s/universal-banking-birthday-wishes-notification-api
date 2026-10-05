@@ -56,11 +56,8 @@ main{padding:24px 20px 50px}.toolbar{display:flex;justify-content:space-between;
 (function(){
   const params=new URLSearchParams(window.location.search);
 
-  const DEFAULT_API_BASES=[
-    "https://birthday-wish-notification-api-east-615dv3.5sc6y6-3.usa-e2.cloudhub.io/api",
-    "https://birthday-wish-notification-api-west-615dv3.5sc6y6-3.usa-e2.cloudhub.io/api",
-    "https://birthday-wish-notification-api-westb-615dv3.5sc6y6-3.usa-e2.cloudhub.io/api"
-  ];
+  const DEFAULT_API_BASES=[];
+  const API_CONFIG_URL=new URL("api-config.json",document.baseURI).href;
   const configuredApi=(params.get("apiBase")||"").replace(/\/$/,"");
   const rememberedApi=(window.localStorage.getItem("birthdayApiBase")||"").replace(/\/$/,"");
   const API_BASES=configuredApi?[configuredApi]:Array.from(new Set([rememberedApi,...DEFAULT_API_BASES].filter(Boolean)));
@@ -87,12 +84,16 @@ main{padding:24px 20px 50px}.toolbar{display:flex;justify-content:space-between;
       const cfg=await response.json();
       const bases=Array.isArray(cfg.apiBases)?cfg.apiBases.map(function(v){return String(v||"").replace(/\/$/,"");}).filter(Boolean):[];
       if(bases.length){
-        API_BASES=Array.from(new Set([...bases,...DEFAULT_API_BASES].filter(Boolean)));
+        API_BASES=Array.from(new Set(bases));
         API_BASE=API_BASES[0];
         $("apiStatus").textContent="LIVE API CONFIG";
+      } else {
+        throw new Error("api-config.json contains no live MuleSoft API bases");
       }
     }catch(e){
-      // Keep the bundled fallback list when the runtime endpoint config is unavailable.
+      // The UI must never silently fall back to stale CloudHub URLs.
+      API_BASES=[];
+      API_BASE=undefined;
     }
   }
 
@@ -343,7 +344,7 @@ main{padding:24px 20px 50px}.toolbar{display:flex;justify-content:space-between;
       if(!selected){
         $("apiStatus").textContent="API OFFLINE";
         $("apiStatus").style.background="#d1434333";
-        $("error").textContent="No regional MuleSoft API responded. Tried: "+API_BASES.map(regionName).join(", ");
+        $("error").textContent=API_BASES.length?"No regional MuleSoft API responded. Tried: "+API_BASES.map(regionName).join(", "):"No live MuleSoft API endpoints are configured. The deployment pipeline must publish ui/api-config.json after resolving the CloudHub 2.0 application URLs.";
         $("error").style.display="block";
         return;
       }
