@@ -69,7 +69,7 @@ main{padding:24px 20px 50px}.toolbar{display:flex;justify-content:space-between;
   let refreshInFlight=false;
   let autoRefreshTimer=null;
   const AUTO_REFRESH_MS=10000;
-  const API_REQUEST_TIMEOUT_MS=12000;
+  const API_REQUEST_TIMEOUT_MS=30000;
   let lastApiRefreshAt=0;
   const API_URL=()=>API_BASE+"/dashboard";
   const CUSTOMERS_URL=()=>API_BASE+"/customers";
@@ -224,7 +224,7 @@ main{padding:24px 20px 50px}.toolbar{display:flex;justify-content:space-between;
     // a region whose database connection is broken.
     const candidates=Array.from(new Set(API_BASES.filter(Boolean)));
     const probes=candidates.map(function(base){
-      return fetchJson(base+"/dashboard",7000).then(function(d){
+      return fetchJson(base+"/dashboard",30000).then(function(d){
         if(!d || typeof d!=="object" || !d.metrics) throw new Error("invalid dashboard response");
         return {base:base,data:d};
       });
@@ -340,7 +340,7 @@ main{padding:24px 20px 50px}.toolbar{display:flex;justify-content:space-between;
     const dashboardPromise=Promise.resolve(selected);
     const results=await Promise.allSettled([
       dashboardPromise,
-      fetchJson(OUTBOX_URL(),10000),
+      fetchJson(OUTBOX_URL(),20000),
       loadCustomersPage(1)
     ]);
     const errors=[];
