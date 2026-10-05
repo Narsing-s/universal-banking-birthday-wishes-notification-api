@@ -594,6 +594,7 @@ jobs:
             -f branch="main"
 
   smoke-test-regions:
+  # Smoke-test paths are relative to each resolved CloudHub root domain.
     name: 🩺 Post-Deployment Smoke Test — 3 Regions
     runs-on: ubuntu-latest
     timeout-minutes: 8
