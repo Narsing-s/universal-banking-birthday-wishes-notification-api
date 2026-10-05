@@ -267,7 +267,7 @@ AND (BIRTHDAY_WISH_SENT_DATE IS NULL OR YEAR(BIRTHDAY_WISH_SENT_DATE)&lt;YEAR(CO
 ]]></snowflake:sql></snowflake:select>
         <foreach doc:name="Create idempotent notification records">
             <snowflake:update doc:name="Create notification if absent" config-ref="Snowflake_Config"><snowflake:sql><![CDATA[
-MERGE INTO BANK_NOTIFICATION_OUTBOX t USING (
+MERGE INTO ${db.sf.database}.${db.sf.schema}.BANK_NOTIFICATION_OUTBOX t USING (
 SELECT :notificationId AS NOTIFICATION_ID,:customerId AS CUSTOMER_ID,'BIRTHDAY_EMAIL' AS NOTIFICATION_TYPE,
 :businessDate AS BUSINESS_DATE,:fullname AS FULLNAME,:email AS EMAIL,:bankName AS BANKNAME,:mobileNumber AS MOBILENUMBER
 ) s ON t.NOTIFICATION_ID=s.NOTIFICATION_ID
@@ -309,7 +309,7 @@ AND (BIRTHDAY_WISH_SENT_DATE IS NULL OR YEAR(BIRTHDAY_WISH_SENT_DATE)<YEAR(CONVE
         <foreach doc:name="Create idempotent notification records">
             <snowflake:update doc:name="Create notification if absent" config-ref="Snowflake_Config">
                 <snowflake:sql><![CDATA[
-MERGE INTO BANK_NOTIFICATION_OUTBOX t USING (
+MERGE INTO ${db.sf.database}.${db.sf.schema}.BANK_NOTIFICATION_OUTBOX t USING (
 SELECT :notificationId AS NOTIFICATION_ID,:customerId AS CUSTOMER_ID,'BIRTHDAY_EMAIL' AS NOTIFICATION_TYPE,
 :businessDate AS BUSINESS_DATE,:fullname AS FULLNAME,:email AS EMAIL,:bankName AS BANKNAME,:mobileNumber AS MOBILENUMBER
 ) s ON t.NOTIFICATION_ID=s.NOTIFICATION_ID
@@ -351,7 +351,7 @@ output application/json
         <set-variable variableName="workerId" value="#[uuid()]" doc:name="Worker identity"/>
         <snowflake:select doc:name="Load pending notification work" config-ref="Snowflake_Config"><snowflake:sql><![CDATA[
 SELECT NOTIFICATION_ID,CUSTOMER_ID,FULLNAME,EMAIL,BANKNAME,MOBILENUMBER,STATUS,ATTEMPT_COUNT
-FROM BANK_NOTIFICATION_OUTBOX
+FROM ${db.sf.database}.${db.sf.schema}.BANK_NOTIFICATION_OUTBOX
 WHERE (STATUS='PENDING' AND (NEXT_ATTEMPT_AT IS NULL OR NEXT_ATTEMPT_AT&lt;=CURRENT_TIMESTAMP))
 OR (STATUS='CLAIMED' AND LEASE_UNTIL&lt;CURRENT_TIMESTAMP)
 ORDER BY CREATED_AT
@@ -368,13 +368,13 @@ LIMIT 25
             <set-variable variableName="mobileNumber" value="#[payload.MOBILENUMBER default '']" doc:name="Mobile number"/>
             <logger level="INFO" doc:name="Claim attempt" message='#["NOTIFICATION | id=" ++ vars.correlationId ++ " | state=CLAIM_ATTEMPT | owner=" ++ vars.workerOwner]'/>
             <snowflake:update doc:name="Acquire lease" config-ref="Snowflake_Config"><snowflake:sql><![CDATA[
-UPDATE BANK_NOTIFICATION_OUTBOX SET STATUS='CLAIMED',OWNER=:owner,LEASE_UNTIL=DATEADD('minute',5,CURRENT_TIMESTAMP()),
+UPDATE ${db.sf.database}.${db.sf.schema}.BANK_NOTIFICATION_OUTBOX SET STATUS='CLAIMED',OWNER=:owner,LEASE_UNTIL=DATEADD('minute',5,CURRENT_TIMESTAMP()),
 ATTEMPT_COUNT=COALESCE(ATTEMPT_COUNT,0)+1,UPDATED_AT=CURRENT_TIMESTAMP()
 WHERE NOTIFICATION_ID=:notificationId AND ((STATUS='PENDING' AND (NEXT_ATTEMPT_AT IS NULL OR NEXT_ATTEMPT_AT&lt;=CURRENT_TIMESTAMP()))
 OR (STATUS='CLAIMED' AND LEASE_UNTIL&lt;CURRENT_TIMESTAMP()))
 ]]></snowflake:sql><snowflake:input-parameters><![CDATA[#[{notificationId:vars.notificationId,owner:vars.workerOwner}]]]></snowflake:input-parameters></snowflake:update>
             <snowflake:select doc:name="Verify lease owner" config-ref="Snowflake_Config"><snowflake:sql><![CDATA[
-SELECT OWNER,STATUS FROM BANK_NOTIFICATION_OUTBOX WHERE NOTIFICATION_ID=:notificationId
+SELECT OWNER,STATUS FROM ${db.sf.database}.${db.sf.schema}.BANK_NOTIFICATION_OUTBOX WHERE NOTIFICATION_ID=:notificationId
 ]]></snowflake:sql><snowflake:input-parameters><![CDATA[#[{notificationId:vars.notificationId}]]]></snowflake:input-parameters></snowflake:select>
             <choice doc:name="Only current lease owner sends">
                 <when expression="#[!isEmpty(payload) and (payload[0].OWNER default '') == vars.workerOwner and payload[0].STATUS == 'CLAIMED']">
@@ -400,7 +400,7 @@ output text/plain
                     <choice doc:name="Persist notification outcome">
                         <when expression="#[vars.emailSent]">
                             <snowflake:update doc:name="Mark notification sent" config-ref="Snowflake_Config"><snowflake:sql><![CDATA[
-UPDATE BANK_NOTIFICATION_OUTBOX SET STATUS='SENT',SENT_AT=CURRENT_TIMESTAMP(),LEASE_UNTIL=NULL,LAST_ERROR=NULL,UPDATED_AT=CURRENT_TIMESTAMP()
+UPDATE ${db.sf.database}.${db.sf.schema}.BANK_NOTIFICATION_OUTBOX SET STATUS='SENT',SENT_AT=CURRENT_TIMESTAMP(),LEASE_UNTIL=NULL,LAST_ERROR=NULL,UPDATED_AT=CURRENT_TIMESTAMP()
 WHERE NOTIFICATION_ID=:notificationId AND OWNER=:owner
 ]]></snowflake:sql><snowflake:input-parameters><![CDATA[#[{notificationId:vars.notificationId,owner:vars.workerOwner}]]]></snowflake:input-parameters></snowflake:update>
                             <snowflake:update doc:name="Mark customer birthday sent" config-ref="Snowflake_Config"><snowflake:sql><![CDATA[
@@ -410,7 +410,7 @@ UPDATE BANK_CUSTOMER_DATA SET BIRTHDAY_WISH_SENT=TRUE,BIRTHDAY_WISH_SENT_DATE=CU
                         </when>
                         <otherwise>
                             <snowflake:update doc:name="Release failed notification for retry" config-ref="Snowflake_Config"><snowflake:sql><![CDATA[
-UPDATE BANK_NOTIFICATION_OUTBOX SET STATUS='PENDING',OWNER=NULL,LEASE_UNTIL=NULL,NEXT_ATTEMPT_AT=DATEADD('minute',5,CURRENT_TIMESTAMP()),LAST_ERROR=:lastError,UPDATED_AT=CURRENT_TIMESTAMP()
+UPDATE ${db.sf.database}.${db.sf.schema}.BANK_NOTIFICATION_OUTBOX SET STATUS='PENDING',OWNER=NULL,LEASE_UNTIL=NULL,NEXT_ATTEMPT_AT=DATEADD('minute',5,CURRENT_TIMESTAMP()),LAST_ERROR=:lastError,UPDATED_AT=CURRENT_TIMESTAMP()
 WHERE NOTIFICATION_ID=:notificationId AND OWNER=:owner
 ]]></snowflake:sql><snowflake:input-parameters><![CDATA[#[{notificationId:vars.notificationId,owner:vars.workerOwner,lastError:vars.lastError}]]]></snowflake:input-parameters></snowflake:update>
                             <logger level="WARN" doc:name="Retry scheduled" message='#["NOTIFICATION | id=" ++ vars.correlationId ++ " | state=RETRY_SCHEDULED | owner=" ++ vars.workerOwner]'/>
@@ -425,7 +425,7 @@ WHERE NOTIFICATION_ID=:notificationId AND OWNER=:owner
     <flow name="birthday-notification-reconciliation" doc:name="Reconcile sent notifications">
         <scheduler doc:name="Reconciliation Poller"><scheduling-strategy><fixed-frequency frequency="5" timeUnit="MINUTES"/></scheduling-strategy></scheduler>
         <snowflake:select doc:name="Find sent notifications missing customer flag" config-ref="Snowflake_Config"><snowflake:sql><![CDATA[
-SELECT o.CUSTOMER_ID FROM BANK_NOTIFICATION_OUTBOX o
+SELECT o.CUSTOMER_ID FROM ${db.sf.database}.${db.sf.schema}.BANK_NOTIFICATION_OUTBOX o
 LEFT JOIN BANK_CUSTOMER_DATA c ON c.CUSTOMER_ID=o.CUSTOMER_ID
 WHERE o.STATUS='SENT' AND o.NOTIFICATION_TYPE='BIRTHDAY_EMAIL'
 AND (c.BIRTHDAY_WISH_SENT_DATE IS NULL OR c.BIRTHDAY_WISH_SENT_DATE&lt;o.SENT_AT)
@@ -451,8 +451,8 @@ UPDATE BANK_CUSTOMER_DATA SET BIRTHDAY_WISH_SENT=TRUE,BIRTHDAY_WISH_SENT_DATE=CU
         <snowflake:select doc:name="Load recent notification outbox" config-ref="Snowflake_Config">
             <snowflake:sql><![CDATA[
 SELECT NOTIFICATION_ID,CUSTOMER_ID,NOTIFICATION_TYPE,BUSINESS_DATE,FULLNAME,EMAIL,BANKNAME,
-       STATUS,ATTEMPT_COUNT,NEXT_ATTEMPT_AT,OWNER,LEASE_UNTIL,ERROR_MESSAGE,SENT_AT,CREATED_AT,UPDATED_AT
-FROM BANK_NOTIFICATION_OUTBOX
+       STATUS,ATTEMPT_COUNT,NEXT_ATTEMPT_AT,OWNER,LEASE_UNTIL,LAST_ERROR,SENT_AT,CREATED_AT,UPDATED_AT
+FROM ${db.sf.database}.${db.sf.schema}.BANK_NOTIFICATION_OUTBOX
 ORDER BY CREATED_AT DESC
 LIMIT 100
 ]]></snowflake:sql>
@@ -479,7 +479,7 @@ output application/json
         nextAttemptAt: n.NEXT_ATTEMPT_AT,
         owner: n.OWNER,
         leaseUntil: n.LEASE_UNTIL,
-        errorMessage: n.ERROR_MESSAGE,
+        errorMessage: n.LAST_ERROR,
         sentAt: n.SENT_AT,
         createdAt: n.CREATED_AT,
         updatedAt: n.UPDATED_AT
