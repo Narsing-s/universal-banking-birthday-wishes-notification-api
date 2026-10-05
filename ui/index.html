@@ -68,7 +68,9 @@ main{padding:24px 20px 50px}.toolbar{display:flex;justify-content:space-between;
   let ACTIVE_REGION="UNKNOWN";
   let refreshInFlight=false;
   let autoRefreshTimer=null;
-  const AUTO_REFRESH_MS=15000;
+  const AUTO_REFRESH_MS=10000;
+  const API_REQUEST_TIMEOUT_MS=12000;
+  let lastApiRefreshAt=0;
   const API_URL=()=>API_BASE+"/dashboard";
   const CUSTOMERS_URL=()=>API_BASE+"/customers";
   const RUNTIME_URL=()=>API_BASE+"/runtime-info";
@@ -194,11 +196,14 @@ main{padding:24px 20px 50px}.toolbar{display:flex;justify-content:space-between;
     window.renderTable();
   }
 
-  async function fetchJson(url,timeoutMs=8000){
+  async function fetchJson(url,timeoutMs=API_REQUEST_TIMEOUT_MS){
     const controller=new AbortController();
+    // Always bypass browser/CDN caching so the dashboard reflects the current Snowflake state.
+    const separator=url.includes("?")?"&":"?";
+    const liveUrl=url+separator+"_ts="+Date.now();
     const timer=setTimeout(function(){controller.abort();},timeoutMs);
     try{
-      const response=await fetch(url,{method:"GET",headers:{Accept:"application/json"},cache:"no-store",signal:controller.signal});
+      const response=await fetch(liveUrl,{method:"GET",headers:{Accept:"application/json","Cache-Control":"no-cache","Pragma":"no-cache"},cache:"no-store",signal:controller.signal});
       const text=await response.text();
       if(!response.ok)throw new Error("HTTP "+response.status+(text?" — "+text.slice(0,180):""));
       try{return JSON.parse(text);}catch(e){throw new Error("API returned non-JSON data");}
@@ -378,7 +383,8 @@ main{padding:24px 20px 50px}.toolbar{display:flex;justify-content:space-between;
 
     render();
     $("lastRefresh").textContent=new Date().toLocaleString("en-IN");
-    $("updated").textContent="Live data refreshed: "+new Date().toLocaleString("en-IN")+" · "+ACTIVE_REGION;
+    lastApiRefreshAt=Date.now();
+    $("updated").textContent="Live API data refreshed: "+new Date().toLocaleString("en-IN")+" · "+ACTIVE_REGION+" · auto refresh 10s";
     $("runtimeInfo").textContent="Regional API: "+ACTIVE_REGION;
     if(errors.length){
       $("error").textContent=errors.join(" | ")+" | Active region: "+ACTIVE_REGION;
@@ -390,6 +396,12 @@ main{padding:24px 20px 50px}.toolbar{display:flex;justify-content:space-between;
     }
     } finally {
       refreshInFlight=false;
+      // Keep the UI polling even when one API request fails. A transient Mule/CloudHub
+      // error must never permanently stop automatic database refreshes.
+      if(!options.noSchedule){
+        clearTimeout(autoRefreshTimer);
+        autoRefreshTimer=setTimeout(function(){loadDashboard();},AUTO_REFRESH_MS);
+      }
     }
   }
 
@@ -411,9 +423,12 @@ main{padding:24px 20px 50px}.toolbar{display:flex;justify-content:space-between;
   loadRuntime();
   loadDashboard();
   checkHealth();
-  // Poll the Snowflake-backed APIs every 15 seconds so new/changed DB rows
-  // appear automatically without a page reload. The in-flight guard prevents
-  // overlapping requests when a slow region is still responding.
+  // Poll the live MuleSoft endpoints directly. This is intentionally independent
+  // from the scheduler/worker: database changes are reflected in the UI even when
+  // the birthday scheduler has not run. Cache-busting is applied in fetchJson().
+  setInterval(function(){
+    if(document.visibilityState==="visible" && !refreshInFlight){ loadDashboard(); }
+  },AUTO_REFRESH_MS);
 })();
 </script>
 </body>
