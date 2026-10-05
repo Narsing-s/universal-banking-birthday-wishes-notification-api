@@ -92,7 +92,7 @@ SELECT
   COUNT_IF(BIRTHDAY_WISH_SENT_DATE IS NOT NULL AND YEAR(BIRTHDAY_WISH_SENT_DATE) = YEAR(CONVERT_TIMEZONE('UTC', 'Asia/Kolkata', CURRENT_TIMESTAMP())::DATE)) AS BIRTHDAY_WISHES_SENT,
   COUNT_IF(BIRTHDAY_WISH_SENT_DATE >= DATEADD(day, -30, CURRENT_TIMESTAMP())) AS SENT_LAST_30_DAYS,
   COUNT_IF(BIRTHDAY_WISH_SENT_DATE IS NULL OR YEAR(BIRTHDAY_WISH_SENT_DATE) < YEAR(CONVERT_TIMEZONE('UTC', 'Asia/Kolkata', CURRENT_TIMESTAMP())::DATE)) AS PENDING
-FROM BANK_CUSTOMER_DATA
+FROM ${db.sf.database}.${db.sf.schema}.BANK_CUSTOMER_DATA
 WHERE STATUS = 'ACTIVE'
 ]]></snowflake:sql>
 		</snowflake:select>
@@ -107,7 +107,7 @@ SELECT
   BANKNAME,
   BIRTHDAY_WISH_SENT,
   BIRTHDAY_WISH_SENT_DATE
-FROM BANK_CUSTOMER_DATA
+FROM ${db.sf.database}.${db.sf.schema}.BANK_CUSTOMER_DATA
 WHERE STATUS = 'ACTIVE'
   AND (
     DATEADD(year, DATEDIFF(year, DATEOFBIRTH, CURRENT_DATE()), DATEOFBIRTH) BETWEEN CURRENT_DATE() AND DATEADD(day, 30, CURRENT_DATE())
@@ -126,7 +126,7 @@ LIMIT 200
 		<snowflake:select doc:name="Load daily sent counts" config-ref="Snowflake_Config">
 			<snowflake:sql><![CDATA[
 SELECT TO_DATE(BIRTHDAY_WISH_SENT_DATE) AS SENT_DATE, COUNT(*) AS SENT_COUNT
-FROM BANK_CUSTOMER_DATA
+FROM ${db.sf.database}.${db.sf.schema}.BANK_CUSTOMER_DATA
 WHERE STATUS = 'ACTIVE'
   AND BIRTHDAY_WISH_SENT_DATE >= DATEADD(day, -29, CURRENT_DATE())
 GROUP BY TO_DATE(BIRTHDAY_WISH_SENT_DATE)
@@ -137,7 +137,7 @@ ORDER BY SENT_DATE
 		<snowflake:select doc:name="Load monthly birthday counts" config-ref="Snowflake_Config">
 			<snowflake:sql><![CDATA[
 SELECT MONTH(DATEOFBIRTH) AS BIRTHDAY_MONTH, COUNT(*) AS BIRTHDAY_COUNT
-FROM BANK_CUSTOMER_DATA
+FROM ${db.sf.database}.${db.sf.schema}.BANK_CUSTOMER_DATA
 WHERE STATUS = 'ACTIVE'
 GROUP BY MONTH(DATEOFBIRTH)
 ORDER BY BIRTHDAY_MONTH
@@ -199,11 +199,11 @@ var customers = []
 SELECT
   FULLNAME, ACCOUNTNUMBER, DATEOFBIRTH, EMAIL, BANKNAME,
   BIRTHDAY_WISH_SENT, BIRTHDAY_WISH_SENT_DATE, STATUS
-FROM BANK_CUSTOMER_DATA
+FROM ${db.sf.database}.${db.sf.schema}.BANK_CUSTOMER_DATA
 WHERE STATUS = 'ACTIVE'
   AND (:search = '' OR UPPER(FULLNAME) LIKE '%' || UPPER(:search) || '%'
        OR UPPER(EMAIL) LIKE '%' || UPPER(:search) || '%'
-       OR UPPER(ACCOUNTNUMBER) LIKE '%' || UPPER(:search) || '%')
+       OR UPPER(TO_VARCHAR(ACCOUNTNUMBER)) LIKE '%' || UPPER(:search) || '%')
 ORDER BY FULLNAME
 LIMIT :pageSize OFFSET :offset
 ]]></snowflake:sql>
@@ -218,11 +218,11 @@ LIMIT :pageSize OFFSET :offset
 		<snowflake:select doc:name="Count customers" config-ref="Snowflake_Config">
 			<snowflake:sql><![CDATA[
 SELECT COUNT(*) AS TOTAL
-FROM BANK_CUSTOMER_DATA
+FROM ${db.sf.database}.${db.sf.schema}.BANK_CUSTOMER_DATA
 WHERE STATUS = 'ACTIVE'
   AND (:search = '' OR UPPER(FULLNAME) LIKE '%' || UPPER(:search) || '%'
        OR UPPER(EMAIL) LIKE '%' || UPPER(:search) || '%'
-       OR UPPER(ACCOUNTNUMBER) LIKE '%' || UPPER(:search) || '%')
+       OR UPPER(TO_VARCHAR(ACCOUNTNUMBER)) LIKE '%' || UPPER(:search) || '%')
 ]]></snowflake:sql>
 			<snowflake:input-parameters><![CDATA[#[{search: vars.search}]]]></snowflake:input-parameters>
 		</snowflake:select>
@@ -259,7 +259,7 @@ var total = (payload[0].TOTAL default 0) as Number
         <snowflake:select doc:name="Select birthday candidates" config-ref="Snowflake_Config"><snowflake:sql><![CDATA[
 SELECT CUSTOMER_ID,FULLNAME,DATEOFBIRTH,MOBILENUMBER,BANKNAME,EMAIL,
 TO_CHAR(CONVERT_TIMEZONE('UTC','Asia/Kolkata',CURRENT_TIMESTAMP())::DATE,'YYYY-MM-DD') AS BUSINESS_DATE
-FROM BANK_CUSTOMER_DATA
+FROM ${db.sf.database}.${db.sf.schema}.BANK_CUSTOMER_DATA
 WHERE MONTH(DATEOFBIRTH)=MONTH(CONVERT_TIMEZONE('UTC','Asia/Kolkata',CURRENT_TIMESTAMP())::DATE)
 AND DAY(DATEOFBIRTH)=DAY(CONVERT_TIMEZONE('UTC','Asia/Kolkata',CURRENT_TIMESTAMP())::DATE)
 AND STATUS='ACTIVE' AND EMAIL IS NOT NULL
@@ -298,7 +298,7 @@ bankName:payload.BANKNAME,mobileNumber:payload.MOBILENUMBER default ""
             <snowflake:sql><![CDATA[
 SELECT CUSTOMER_ID,FULLNAME,DATEOFBIRTH,MOBILENUMBER,BANKNAME,EMAIL,
 TO_CHAR(CONVERT_TIMEZONE('UTC','Asia/Kolkata',CURRENT_TIMESTAMP())::DATE,'YYYY-MM-DD') AS BUSINESS_DATE
-FROM BANK_CUSTOMER_DATA
+FROM ${db.sf.database}.${db.sf.schema}.BANK_CUSTOMER_DATA
 WHERE MONTH(DATEOFBIRTH)=MONTH(CONVERT_TIMEZONE('UTC','Asia/Kolkata',CURRENT_TIMESTAMP())::DATE)
 AND DAY(DATEOFBIRTH)=DAY(CONVERT_TIMEZONE('UTC','Asia/Kolkata',CURRENT_TIMESTAMP())::DATE)
 AND STATUS='ACTIVE' AND EMAIL IS NOT NULL
@@ -404,7 +404,7 @@ UPDATE ${db.sf.database}.${db.sf.schema}.BANK_NOTIFICATION_OUTBOX SET STATUS='SE
 WHERE NOTIFICATION_ID=:notificationId AND OWNER=:owner
 ]]></snowflake:sql><snowflake:input-parameters><![CDATA[#[{notificationId:vars.notificationId,owner:vars.workerOwner}]]]></snowflake:input-parameters></snowflake:update>
                             <snowflake:update doc:name="Mark customer birthday sent" config-ref="Snowflake_Config"><snowflake:sql><![CDATA[
-UPDATE BANK_CUSTOMER_DATA SET BIRTHDAY_WISH_SENT=TRUE,BIRTHDAY_WISH_SENT_DATE=CURRENT_TIMESTAMP() WHERE CUSTOMER_ID=:customerId
+UPDATE ${db.sf.database}.${db.sf.schema}.BANK_CUSTOMER_DATA SET BIRTHDAY_WISH_SENT=TRUE,BIRTHDAY_WISH_SENT_DATE=CURRENT_TIMESTAMP() WHERE CUSTOMER_ID=:customerId
 ]]></snowflake:sql><snowflake:input-parameters><![CDATA[#[{customerId:vars.customerId}]]]></snowflake:input-parameters></snowflake:update>
                             <logger level="INFO" doc:name="Notification completed" message='#["NOTIFICATION | id=" ++ vars.correlationId ++ " | state=SENT | owner=" ++ vars.workerOwner]'/>
                         </when>
@@ -426,14 +426,14 @@ WHERE NOTIFICATION_ID=:notificationId AND OWNER=:owner
         <scheduler doc:name="Reconciliation Poller"><scheduling-strategy><fixed-frequency frequency="5" timeUnit="MINUTES"/></scheduling-strategy></scheduler>
         <snowflake:select doc:name="Find sent notifications missing customer flag" config-ref="Snowflake_Config"><snowflake:sql><![CDATA[
 SELECT o.CUSTOMER_ID FROM ${db.sf.database}.${db.sf.schema}.BANK_NOTIFICATION_OUTBOX o
-LEFT JOIN BANK_CUSTOMER_DATA c ON c.CUSTOMER_ID=o.CUSTOMER_ID
+LEFT JOIN ${db.sf.database}.${db.sf.schema}.BANK_CUSTOMER_DATA c ON c.CUSTOMER_ID=o.CUSTOMER_ID
 WHERE o.STATUS='SENT' AND o.NOTIFICATION_TYPE='BIRTHDAY_EMAIL'
 AND (c.BIRTHDAY_WISH_SENT_DATE IS NULL OR c.BIRTHDAY_WISH_SENT_DATE&lt;o.SENT_AT)
 LIMIT 100
 ]]></snowflake:sql></snowflake:select>
         <foreach doc:name="Reconcile customer flag">
             <snowflake:update doc:name="Repair birthday sent flag" config-ref="Snowflake_Config"><snowflake:sql><![CDATA[
-UPDATE BANK_CUSTOMER_DATA SET BIRTHDAY_WISH_SENT=TRUE,BIRTHDAY_WISH_SENT_DATE=CURRENT_TIMESTAMP() WHERE CUSTOMER_ID=:customerId
+UPDATE ${db.sf.database}.${db.sf.schema}.BANK_CUSTOMER_DATA SET BIRTHDAY_WISH_SENT=TRUE,BIRTHDAY_WISH_SENT_DATE=CURRENT_TIMESTAMP() WHERE CUSTOMER_ID=:customerId
 ]]></snowflake:sql><snowflake:input-parameters><![CDATA[#[{customerId:payload.CUSTOMER_ID}]]]></snowflake:input-parameters></snowflake:update>
         </foreach>
     </flow>
