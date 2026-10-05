@@ -1,0 +1,258 @@
+name: MuleSoft Auto-Heal — Bring Down APIs Back Up
+
+on:
+  schedule:
+    # Check every 5 minutes. GitHub may delay scheduled runs during load.
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Anypoint environment to auto-heal"
+        required: true
+        type: choice
+        options:
+          - dev
+          - qa
+          - sandbox
+          - prod
+        default: dev
+      application:
+        description: "Optional single application name. Leave blank to check the configured regional applications."
+        required: false
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+  actions: read
+
+# Never allow two recovery runs to operate on the same environment at once.
+concurrency:
+  group: mule-auto-heal-${{ github.event_name == 'workflow_dispatch' && inputs.environment || vars.AUTOHEAL_ENVIRONMENT || 'dev' }}
+  cancel-in-progress: false
+
+jobs:
+  auto-heal:
+    name: 🩺 Detect & Recover Down Mule APIs
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+
+    # Runtime credentials are read from the selected GitHub Environment.
+    environment: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || vars.AUTOHEAL_ENVIRONMENT || 'dev' }}
+
+    env:
+      ANYPOINT_CLIENT_ID: ${{ secrets.ANYPOINT_CLIENT_ID }}
+      ANYPOINT_CLIENT_SECRET: ${{ secrets.ANYPOINT_CLIENT_SECRET }}
+      ANYPOINT_ORG: ${{ secrets.ANYPOINT_ORG_ID }}
+      ANYPOINT_ENV: ${{ secrets.CLOUDHUB_ENVIRONMENT }}
+      CLOUDHUB_APPLICATION_NAME: ${{ secrets.CLOUDHUB_APPLICATION_NAME }}
+      AUTOHEAL_APPLICATION: ${{ inputs.application }}
+
+      # Optional: set AUTOHEAL_APPLICATIONS as a repository/environment variable
+      # to override the default three-region naming convention.
+      # Example:
+      # AUTOHEAL_APPLICATIONS=bank-api-west,bank-api-westb,bank-api-east
+      AUTOHEAL_APPLICATIONS: ${{ vars.AUTOHEAL_APPLICATIONS }}
+
+    steps:
+      - name: Install Anypoint CLI 4.x
+        run: |
+          set -euo pipefail
+          npm install -g anypoint-cli-v4-public
+          anypoint-cli-v4 --version
+
+      - name: Validate credentials and configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          for name in ANYPOINT_CLIENT_ID ANYPOINT_CLIENT_SECRET ANYPOINT_ORG ANYPOINT_ENV CLOUDHUB_APPLICATION_NAME; do
+            if [ -z "${!name:-}" ]; then
+              echo "::error::Missing required GitHub Environment secret: ${name}"
+              exit 1
+            fi
+          done
+
+          echo "Anypoint environment: ${ANYPOINT_ENV}"
+          echo "Application base name: ${CLOUDHUB_APPLICATION_NAME}"
+          echo "Auto-heal mode: scheduled/automatic"
+
+      - name: Discover configured Mule applications
+        id: discover
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          # A manually supplied application takes precedence.
+          if [ -n "${AUTOHEAL_APPLICATION:-}" ]; then
+            printf '%s\n' "${AUTOHEAL_APPLICATION}" > applications.txt
+          elif [ -n "${AUTOHEAL_APPLICATIONS:-}" ]; then
+            printf '%s\n' "${AUTOHEAL_APPLICATIONS}" | tr ',' '\n' > applications.txt
+          else
+            # Existing repository convention:
+            # <CLOUDHUB_APPLICATION_NAME>-west
+            # <CLOUDHUB_APPLICATION_NAME>-westb
+            # <CLOUDHUB_APPLICATION_NAME>-east
+            printf '%s\n' \
+              "${CLOUDHUB_APPLICATION_NAME}-west" \
+              "${CLOUDHUB_APPLICATION_NAME}-westb" \
+              "${CLOUDHUB_APPLICATION_NAME}-east" > applications.txt
+          fi
+
+          sed -i '/^[[:space:]]*$/d' applications.txt
+          sort -u applications.txt -o applications.txt
+
+          if [ ! -s applications.txt ]; then
+            echo "::error::No applications configured for auto-healing."
+            exit 1
+          fi
+
+          echo "Applications to inspect:"
+          cat applications.txt
+
+      - name: Check application status
+        id: status
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          any_down=0
+          any_unknown=0
+
+          echo "## 🩺 MuleSoft Auto-Heal Check" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Application | Status | Action |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|---|---|---|" >> "$GITHUB_STEP_SUMMARY"
+
+          while IFS= read -r app; do
+            echo "Checking: $app"
+
+            raw="$(anypoint-cli-v4 runtime-mgr:cloudhub-application:describe "$app" --output json 2>/dev/null || true)"
+
+            if [ -z "$raw" ]; then
+              echo "::warning::Could not describe $app. It may not exist in the selected Anypoint environment."
+              echo "| $app | UNKNOWN | No action |" >> "$GITHUB_STEP_SUMMARY"
+              any_unknown=1
+              continue
+            fi
+
+            status_value="$(jq -r '(.status // .Status // .application.status // .applicationStatus // "UNKNOWN") | tostring | ascii_upcase' <<<"$raw" 2>/dev/null || echo UNKNOWN)"
+
+            echo "Application: $app"
+            echo "Status: $status_value"
+
+            case "$status_value" in
+              RUNNING|STARTED|DEPLOYED|APPLIED)
+                echo "| $app | $status_value | Healthy |" >> "$GITHUB_STEP_SUMMARY"
+                ;;
+              STOPPED|DOWN|FAILED|UNDEPLOYED|NOT_RUNNING)
+                echo "| $app | $status_value | Recovery required |" >> "$GITHUB_STEP_SUMMARY"
+                any_down=1
+                ;;
+              *)
+                echo "| $app | $status_value | Review required |" >> "$GITHUB_STEP_SUMMARY"
+                any_unknown=1
+                ;;
+            esac
+          done < applications.txt
+
+          echo "ANY_DOWN=$any_down" >> "$GITHUB_OUTPUT"
+          echo "ANY_UNKNOWN=$any_unknown" >> "$GITHUB_OUTPUT"
+
+      - name: Recover stopped/down applications
+        if: steps.status.outputs.ANY_DOWN == '1'
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          echo "Starting controlled recovery."
+
+          while IFS= read -r app; do
+            raw="$(anypoint-cli-v4 runtime-mgr:cloudhub-application:describe "$app" --output json 2>/dev/null || true)"
+            [ -n "$raw" ] || continue
+
+            status_value="$(jq -r '(.status // .Status // .application.status // .applicationStatus // "UNKNOWN") | tostring | ascii_upcase' <<<"$raw" 2>/dev/null || echo UNKNOWN)"
+
+            case "$status_value" in
+              STOPPED|DOWN|FAILED|UNDEPLOYED|NOT_RUNNING)
+                echo "Recovering $app (current status: $status_value)"
+
+                # Prefer start for a stopped application.
+                # If the platform reports FAILED/DOWN, restart is used where supported.
+                if [ "$status_value" = "STOPPED" ] || [ "$status_value" = "UNDEPLOYED" ]; then
+                  anypoint-cli-v4 runtime-mgr:cloudhub-application:start "$app"
+                else
+                  anypoint-cli-v4 runtime-mgr:cloudhub-application:restart "$app"
+                fi
+                ;;
+              *)
+                echo "$app is no longer in a recoverable-down state; skipping."
+                ;;
+            esac
+          done < applications.txt
+
+      - name: Wait for applications to recover
+        if: steps.status.outputs.ANY_DOWN == '1'
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          max_attempts=12
+          sleep_seconds=10
+          failed=0
+
+          for attempt in $(seq 1 "$max_attempts"); do
+            echo "Recovery verification attempt $attempt/$max_attempts"
+            failed=0
+
+            while IFS= read -r app; do
+              raw="$(anypoint-cli-v4 runtime-mgr:cloudhub-application:describe "$app" --output json 2>/dev/null || true)"
+
+              if [ -z "$raw" ]; then
+                echo "::warning::Unable to read status for $app."
+                failed=1
+                continue
+              fi
+
+              status_value="$(jq -r '(.status // .Status // .application.status // .applicationStatus // "UNKNOWN") | tostring | ascii_upcase' <<<"$raw" 2>/dev/null || echo UNKNOWN)"
+              echo "$app => $status_value"
+
+              case "$status_value" in
+                RUNNING|STARTED|DEPLOYED|APPLIED)
+                  ;;
+                *)
+                  failed=1
+                  ;;
+              esac
+            done < applications.txt
+
+            if [ "$failed" -eq 0 ]; then
+              echo "All configured applications are healthy."
+              exit 0
+            fi
+
+            sleep "$sleep_seconds"
+          done
+
+          echo "::error::One or more Mule applications did not recover within the verification window."
+          exit 1
+
+      - name: Report healthy state
+        if: steps.status.outputs.ANY_DOWN != '1'
+        run: |
+          echo "No stopped/down applications were detected."
+          if [ "${{ steps.status.outputs.ANY_UNKNOWN }}" = "1" ]; then
+            echo "::warning::At least one application returned an unknown status. No restart was attempted for unknown states."
+          fi
+
+      - name: Create failure summary
+        if: failure()
+        run: |
+          {
+            echo ""
+            echo "### 🚨 Auto-Heal Result"
+            echo ""
+            echo "Automatic recovery did not fully complete."
+            echo ""
+            echo "Recommended action: check Anypoint Runtime Manager logs and the failed GitHub Actions step before manually redeploying."
+          } >> "$GITHUB_STEP_SUMMARY"
