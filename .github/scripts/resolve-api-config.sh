@@ -81,7 +81,7 @@ resolve_domain() {
       ' <<<"${described}" | head -n1
     )"
     if [ -n "${described_domain}" ]; then
-      printf '%s\\n' "${described_domain}"
+      printf '%s\n' "${described_domain}"
       return 0
     fi
   fi
@@ -109,7 +109,7 @@ for region in west westb east; do
 
   domain="${domain%/}"
   echo "${region^^}: ${domain}"
-  domains+=("${domain}/api")
+  domains+=("${domain}")
 done
 
 generated_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
