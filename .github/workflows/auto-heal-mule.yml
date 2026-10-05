@@ -128,7 +128,7 @@ jobs:
             fi
 
             printf '%s|%s\n' "$app" "$app_id" >> application-map.txt
-          done < application-map.txt
+          done < applications.txt
 
           if [ ! -s application-map.txt ]; then
             echo "::error::None of the configured applications were found in the selected CloudHub 2 environment."
@@ -182,7 +182,7 @@ jobs:
                 any_unknown=1
                 ;;
             esac
-          done < applications.txt
+          done < application-map.txt
 
           echo "ANY_DOWN=$any_down" >> "$GITHUB_OUTPUT"
           echo "ANY_UNKNOWN=$any_unknown" >> "$GITHUB_OUTPUT"
@@ -196,7 +196,7 @@ jobs:
           echo "Starting controlled recovery."
 
           while IFS="|" read -r app app_id; do
-            raw="$(anypoint-cli-v4 runtime-mgr:application:describe "$app" --output json 2>/dev/null || true)"
+            raw="$(anypoint-cli-v4 runtime-mgr:application:describe "$app_id" --output json 2>/dev/null || true)"
             [ -n "$raw" ] || continue
 
             status_value="$(jq -r '(.status // .Status // .application.status // .applicationStatus // "UNKNOWN") | tostring | ascii_upcase' <<<"$raw" 2>/dev/null || echo UNKNOWN)"
@@ -229,7 +229,7 @@ jobs:
             echo "Recovery verification attempt $attempt/$max_attempts"
             failed=0
 
-            while IFS= read -r app; do
+            while IFS="|" read -r app app_id; do
               raw="$(anypoint-cli-v4 runtime-mgr:application:describe "$app" --output json 2>/dev/null || true)"
 
               if [ -z "$raw" ]; then
@@ -248,7 +248,7 @@ jobs:
                   failed=1
                   ;;
               esac
-            done < applications.txt
+            done < application-map.txt
 
             if [ "$failed" -eq 0 ]; then
               echo "All configured applications are healthy."
