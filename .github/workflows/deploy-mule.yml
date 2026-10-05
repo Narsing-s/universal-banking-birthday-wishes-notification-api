@@ -587,6 +587,7 @@ jobs:
   smoke-test-regions:
     name: 🩺 Post-Deployment Smoke Test — 3 Regions
     runs-on: ubuntu-latest
+    timeout-minutes: 8
     needs:
       - deploy-west
       - deploy-westb
@@ -635,12 +636,12 @@ jobs:
           for entry in "${regions[@]}"; do
             IFS="|" read -r region base <<< "$entry"
             # Critical old-UI data contract.
+            smoke "$region" "$base" "/api/health/dependencies" || failed=1
             smoke "$region" "$base" "/api/dashboard" || failed=1
             smoke "$region" "$base" "/api/customers?page=1&limit=1" || failed=1
-            # Diagnostics are reported without blocking the data-serving deployment.
+            # Diagnostics that do not gate the deployment.
             optional_smoke "$region" "$base" "/api/runtime-info"
             optional_smoke "$region" "$base" "/api/health"
-            optional_smoke "$region" "$base" "/api/health/dependencies"
             optional_smoke "$region" "$base" "/api/outbox"
             # Root is not part of the UI data contract.
             if smoke "$region" "$base" "/"; then
