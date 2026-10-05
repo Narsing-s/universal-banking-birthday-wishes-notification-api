@@ -23,7 +23,7 @@ permissions:
   actions: read
 
 concurrency:
-  group: mule-cicd-${{ github.ref }}
+  group: mule-cicd-${{ github.ref }}-${{ github.run_id }}
   cancel-in-progress: true
 
 jobs:
