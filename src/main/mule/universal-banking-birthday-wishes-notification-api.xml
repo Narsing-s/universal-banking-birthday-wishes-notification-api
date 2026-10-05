@@ -352,9 +352,10 @@ output application/json
         <snowflake:select doc:name="Load pending notification work" config-ref="Snowflake_Config"><snowflake:sql><![CDATA[
 SELECT NOTIFICATION_ID,CUSTOMER_ID,FULLNAME,EMAIL,BANKNAME,MOBILENUMBER,STATUS,ATTEMPT_COUNT
 FROM BANK_NOTIFICATION_OUTBOX
-WHERE (STATUS='PENDING' AND (NEXT_ATTEMPT_AT IS NULL OR NEXT_ATTEMPT_AT&lt;=CURRENT_TIMESTAMP()))
-OR (STATUS='CLAIMED' AND LEASE_UNTIL&lt;CURRENT_TIMESTAMP())
-ORDER BY CREATED_AT LIMIT 25
+WHERE (STATUS='PENDING' AND (NEXT_ATTEMPT_AT IS NULL OR NEXT_ATTEMPT_AT&lt;=CURRENT_TIMESTAMP))
+OR (STATUS='CLAIMED' AND LEASE_UNTIL&lt;CURRENT_TIMESTAMP)
+ORDER BY CREATED_AT
+LIMIT 25
 ]]></snowflake:sql></snowflake:select>
         <foreach doc:name="Claim and process notification">
             <set-variable variableName="notificationId" value="#[payload.NOTIFICATION_ID as String]" doc:name="Notification ID"/>
@@ -427,7 +428,8 @@ WHERE NOTIFICATION_ID=:notificationId AND OWNER=:owner
 SELECT o.CUSTOMER_ID FROM BANK_NOTIFICATION_OUTBOX o
 LEFT JOIN BANK_CUSTOMER_DATA c ON c.CUSTOMER_ID=o.CUSTOMER_ID
 WHERE o.STATUS='SENT' AND o.NOTIFICATION_TYPE='BIRTHDAY_EMAIL'
-AND (c.BIRTHDAY_WISH_SENT_DATE IS NULL OR c.BIRTHDAY_WISH_SENT_DATE&lt;o.SENT_AT) LIMIT 100
+AND (c.BIRTHDAY_WISH_SENT_DATE IS NULL OR c.BIRTHDAY_WISH_SENT_DATE&lt;o.SENT_AT)
+LIMIT 100
 ]]></snowflake:sql></snowflake:select>
         <foreach doc:name="Reconcile customer flag">
             <snowflake:update doc:name="Repair birthday sent flag" config-ref="Snowflake_Config"><snowflake:sql><![CDATA[
