@@ -653,12 +653,12 @@ jobs:
           failed=0
           for entry in "${regions[@]}"; do
             IFS="|" read -r region base <<< "$entry"
-            smoke "$region" "$base" "/api/health/dependencies" || failed=1
-            smoke "$region" "$base" "/api/dashboard" || failed=1
-            smoke "$region" "$base" "/api/customers?page=1&limit=1" || failed=1
-            optional_smoke "$region" "$base" "/api/runtime-info"
-            optional_smoke "$region" "$base" "/api/health"
-            optional_smoke "$region" "$base" "/api/outbox"
+            smoke "$region" "$base" "/health/dependencies" || failed=1
+            smoke "$region" "$base" "/dashboard" || failed=1
+            smoke "$region" "$base" "/customers?page=1&limit=1" || failed=1
+            optional_smoke "$region" "$base" "/runtime-info"
+            optional_smoke "$region" "$base" "/health"
+            optional_smoke "$region" "$base" "/outbox"
             if smoke "$region" "$base" "/"; then
               echo "[$region] PASS /"
             else
