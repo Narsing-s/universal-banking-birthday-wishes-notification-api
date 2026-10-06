@@ -58,6 +58,7 @@ jobs:
   source-preflight:
     name: 🔎 Source & Pipeline Preflight Verification
     runs-on: ubuntu-latest
+    environment: ${{ github.event_name == 'push' && 'dev' || inputs.environment == 'all' && 'dev' || inputs.environment }}
     needs: permission-check
     steps:
       - name: Checkout immutable source
@@ -597,7 +598,7 @@ jobs:
       - deploy-westb
       - deploy-east
     if: needs.deploy-west.result == 'success' && needs.deploy-westb.result == 'success' && needs.deploy-east.result == 'success'
-    environment: dev
+    environment: ${{ github.event_name == 'push' && 'dev' || inputs.environment == 'all' && 'dev' || inputs.environment }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
