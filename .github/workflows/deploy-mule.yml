@@ -231,7 +231,7 @@ jobs:
           test -n "${ANYPOINT_CLIENT_SECRET}" || { echo "::error::ANYPOINT_CLIENT_SECRET is empty in GitHub Environment ${{ matrix.environment }}."; exit 1; }
           response="$(curl -sS -w "\n%{http_code}" -X POST "https://anypoint.mulesoft.com/accounts/api/v2/oauth2/token" -H "Content-Type: application/x-www-form-urlencoded" --data-urlencode "grant_type=client_credentials" --data-urlencode "client_id=${ANYPOINT_CLIENT_ID}" --data-urlencode "client_secret=${ANYPOINT_CLIENT_SECRET}")"
           status="$(printf "%s\n" "${response}" | tail -n1)"
-          body="$(printf "%s\n" "${response}" | sed "$d")"
+          body="$(printf "%s\n" "${response}" | sed '$d')"
           if [ "${status}" != "200" ]; then
             error_code="$(jq -r ".error // empty" <<<"${body}" 2>/dev/null || true)"
             error_description="$(jq -r ".error_description // .message // empty" <<<"${body}" 2>/dev/null || true)"
