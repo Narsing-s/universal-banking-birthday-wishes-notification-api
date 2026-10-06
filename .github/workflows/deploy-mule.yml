@@ -114,7 +114,7 @@ jobs:
           echo "Mule XML syntax validation passed."
 
   validate-config:
-    name: 🧩 Validate CI/CD Configuration
+    name: "🧩 Validate CI/CD — ${{ matrix.environment }}"
     runs-on: ubuntu-latest
     needs: permission-check
     strategy:
@@ -206,6 +206,43 @@ jobs:
           echo "Configured CloudHub environment for ${{ matrix.environment }}: ${CLOUDHUB_ENVIRONMENT}"
           echo "Expected Anypoint environment: ${expected_name} (${expected_id})"
           echo "Shared CloudHub target: ${CLOUDHUB_TARGET}"
+          case "${{ matrix.environment }}" in
+            dev) echo "::notice::🔵 TARGET ENVIRONMENT: DEV — GitHub Environment [dev]" ;;
+            qa) echo "::notice::🟡 TARGET ENVIRONMENT: QA — GitHub Environment [qa]" ;;
+            sandbox) echo "::notice::🟣 TARGET ENVIRONMENT: SANDBOX — GitHub Environment [sandbox]" ;;
+            prod) echo "::warning::🔴 TARGET ENVIRONMENT: PRODUCTION — GitHub Environment [prod]" ;;
+          esac
+          echo "Anypoint Org ID: ${ANYPOINT_ORG_ID}"
+          echo "Connected App Client ID is configured (length ${#ANYPOINT_CLIENT_ID})"
+          echo "Connected App Secret is configured (length ${#ANYPOINT_CLIENT_SECRET})"
+
+      - name: 🔑 Verify Connected App authentication
+        env:
+          ANYPOINT_CLIENT_ID: ${{ secrets.ANYPOINT_CLIENT_ID }}
+          ANYPOINT_CLIENT_SECRET: ${{ secrets.ANYPOINT_CLIENT_SECRET }}
+        run: |
+          set -euo pipefail
+          echo "============================================================"
+          echo "🔐 ANYPOINT CONNECTED APP AUTHENTICATION"
+          echo "Environment: ${{ matrix.environment }}"
+          echo "============================================================"
+          test -n "${ANYPOINT_CLIENT_ID}" || { echo "::error::ANYPOINT_CLIENT_ID is empty in GitHub Environment ${{ matrix.environment }}."; exit 1; }
+          test -n "${ANYPOINT_CLIENT_SECRET}" || { echo "::error::ANYPOINT_CLIENT_SECRET is empty in GitHub Environment ${{ matrix.environment }}."; exit 1; }
+          response="$(curl -sS -w "\n%{http_code}" -X POST "https://anypoint.mulesoft.com/accounts/api/v2/oauth2/token" -H "Content-Type: application/x-www-form-urlencoded" --data-urlencode "grant_type=client_credentials" --data-urlencode "client_id=${ANYPOINT_CLIENT_ID}" --data-urlencode "client_secret=${ANYPOINT_CLIENT_SECRET}")"
+          status="$(printf "%s\n" "${response}" | tail -n1)"
+          body="$(printf "%s\n" "${response}" | sed "$d")"
+          if [ "${status}" != "200" ]; then
+            error_code="$(jq -r ".error // empty" <<<"${body}" 2>/dev/null || true)"
+            error_description="$(jq -r ".error_description // .message // empty" <<<"${body}" 2>/dev/null || true)"
+            echo "::error::${{ matrix.environment }} Connected App authentication failed: HTTP ${status}."
+            [ -n "${error_code}" ] && echo "::error::Anypoint error: ${error_code}"
+            [ -n "${error_description}" ] && echo "::error::Anypoint message: ${error_description}"
+            echo "::error::Check ANYPOINT_CLIENT_ID and ANYPOINT_CLIENT_SECRET in GitHub Environment ${{ matrix.environment }}. Verify the Connected App is active and authorized for this organization."
+            exit 1
+          fi
+          token="$(jq -r ".access_token // empty" <<<"${body}")"
+          test -n "${token}" || { echo "::error::HTTP 200 received but no access_token was returned."; exit 1; }
+          echo "::notice::${{ matrix.environment }} Connected App authentication successful."
 
   build-artifact:
     environment: ${{ github.event_name == 'push' && 'dev' || inputs.environment == 'all' && 'dev' || inputs.environment }}
