@@ -1,0 +1,86 @@
+name: Repository Quality Checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate Mule configuration and dashboard
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Validate Mule XML is well-formed
+        run: |
+          python - <<'PY'
+          import xml.etree.ElementTree as ET
+          from pathlib import Path
+
+          files = sorted(Path("src/main/mule").glob("*.xml"))
+          if not files:
+              raise SystemExit("No Mule XML files found under src/main/mule")
+          for file in files:
+              ET.parse(file)
+              print(f"Valid XML: {file}")
+          PY
+
+      - name: Validate Mule artifact metadata
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          artifact = json.loads(Path("mule-artifact.json").read_text())
+          assert artifact.get("minMuleVersion"), "minMuleVersion is required"
+          assert "17" in artifact.get("javaSpecificationVersions", []), "Java 17 must be supported"
+          print("Mule artifact metadata is valid")
+          PY
+
+      - name: Check dashboard inline JavaScript syntax
+        run: |
+          python - <<'PY'
+          import re
+          from pathlib import Path
+
+          html = Path("ui/index.html").read_text(encoding="utf-8")
+          scripts = re.findall(r"<script(?:\\s[^>]*)?>(.*?)</script\\s*>", html, flags=re.I | re.S)
+          if not scripts:
+              raise SystemExit("No inline JavaScript found in ui/index.html")
+          for index, script in enumerate(scripts, 1):
+              Path(f"/tmp/dashboard-{index}.js").write_text(script, encoding="utf-8")
+          print(f"Extracted {len(scripts)} inline script block(s)")
+          PY
+          for file in /tmp/dashboard-*.js; do node --check "$file"; done
+
+      - name: Validate dashboard API configuration
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          config = json.loads(Path("ui/api-config.json").read_text(encoding="utf-8"))
+          bases = config.get("apiBases")
+          if not isinstance(bases, list) or not bases:
+              raise SystemExit("ui/api-config.json must define a non-empty apiBases array")
+          for base in bases:
+              if not isinstance(base, str) or not base.startswith("https://"):
+                  raise SystemExit(f"Invalid API base URL: {base!r}")
+          print(f"Validated {len(bases)} HTTPS API base URL(s)")
+          PY
