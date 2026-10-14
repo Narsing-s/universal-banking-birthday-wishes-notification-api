@@ -195,15 +195,13 @@ The result must contain at least:
 
 ## Scheduler Configuration
 
-### Current Configuration
+The birthday candidate/outbox flow is scheduled daily at **09:00 AM Asia/Kolkata** using a cron expression. The notification worker polls the shared outbox every minute, and the reconciliation flow runs every five minutes. These are separate schedules with different responsibilities.
 
-```xml
-<fixed-frequency frequency="1" timeUnit="MINUTES"/>
-```
+- **Candidate scan:** daily at 09:00 Asia/Kolkata; inserts idempotent records into `BANK_NOTIFICATION_OUTBOX`.
+- **Notification worker:** every minute; claims pending/expired-lease records, sends email, and records the outcome.
+- **Reconciliation:** every five minutes; repairs customer sent flags when an outbox record is already marked sent.
 
-### Recommended Production Configuration
-
-Run daily at **09:00 AM (Asia/Kolkata)**.
+Do not change the worker poller to a daily schedule: that would delay retries and queued notifications.
 
 ---
 
