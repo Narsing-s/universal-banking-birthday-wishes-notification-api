@@ -63,7 +63,7 @@ main{padding:24px 20px 50px}.toolbar{display:flex;justify-content:space-between;
   ];
   const configuredApi=(params.get("apiBase")||"").replace(/\/$/,"");
   const rememberedApi=(window.localStorage.getItem("birthdayApiBase")||"").replace(/\/$/,"");
-  const API_BASES=configuredApi?[configuredApi]:Array.from(new Set([rememberedApi,...DEFAULT_API_BASES].filter(Boolean)));
+  let API_BASES=configuredApi?[configuredApi]:Array.from(new Set([rememberedApi,...DEFAULT_API_BASES].filter(Boolean)));
   let API_BASE=API_BASES[0];
   let ACTIVE_REGION="UNKNOWN";
   let refreshInFlight=false;
