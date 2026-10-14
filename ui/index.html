@@ -60,7 +60,7 @@ main{padding:24px 20px 50px}.toolbar{display:flex;justify-content:space-between;
   const API_CONFIG_URL=new URL("api-config.json",document.baseURI).href;
   const configuredApi=(params.get("apiBase")||"").replace(/\/$/,"");
   const rememberedApi=(window.localStorage.getItem("birthdayApiBase")||"").replace(/\/$/,"");
-  const API_BASES=configuredApi?[configuredApi]:Array.from(new Set([rememberedApi,...DEFAULT_API_BASES].filter(Boolean)));
+  let API_BASES=configuredApi?[configuredApi]:Array.from(new Set([rememberedApi,...DEFAULT_API_BASES].filter(Boolean)));
   let API_BASE=API_BASES[0];
   let ACTIVE_REGION="UNKNOWN";
   let refreshInFlight=false;
@@ -83,8 +83,12 @@ main{padding:24px 20px 50px}.toolbar{display:flex;justify-content:space-between;
       if(!response.ok) throw new Error("HTTP "+response.status);
       const cfg=await response.json();
       const bases=Array.isArray(cfg.apiBases)?cfg.apiBases.map(function(v){return String(v||"").replace(/\/$/,"");}).filter(Boolean):[];
-      if(bases.length){
-        API_BASES=Array.from(new Set(bases));
+      if(configuredApi){
+        API_BASES=[configuredApi];
+        API_BASE=configuredApi;
+        $("apiStatus").textContent="CUSTOM API";
+      } else if(bases.length){
+        API_BASES=Array.from(new Set([rememberedApi,...bases].filter(Boolean)));
         API_BASE=API_BASES[0];
         $("apiStatus").textContent="LIVE API CONFIG";
       } else {
