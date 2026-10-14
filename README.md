@@ -193,6 +193,21 @@ The result must contain at least:
 - `BIRTHDAY_WISH_SENT`
 - `BIRTHDAY_WISH_SENT_DATE`
 
+## Notification outbox migration (required)
+
+Before enabling the birthday scheduler/worker, run these migrations in order against the Snowflake database/schema used by the application:
+
+1. `database/migrations/001_birthday_notification_columns.sql`
+2. `database/migrations/002_notification_outbox.sql`
+
+Both scripts currently use `MYDATABASE.PUBLIC` to match the repository's existing example. If your configured `db.sf.database` or `db.sf.schema` differs, update the fully qualified table names in the migration before running it. Confirm that `BANK_CUSTOMER_DATA` contains `CUSTOMER_ID`, `FULLNAME`, `DATEOFBIRTH`, `EMAIL`, `BANKNAME`, `MOBILENUMBER`, `STATUS`, `BIRTHDAY_WISH_SENT`, and `BIRTHDAY_WISH_SENT_DATE`.
+
+The outbox table is required by the candidate scanner, notification worker, reconciliation flow, and dashboard outbox endpoint. Do not enable production email sending until the schema and SMTP settings are verified.
+
+## Dashboard UI validation
+
+The dashboard source is `ui/index.html`; the copy packaged into the Mule application is `src/main/resources/site/index.html`. Keep both copies updated together. The quality-check workflow validates JavaScript syntax in both copies and checks that runtime API configuration can update the API base list.
+
 ## Scheduler Configuration
 
 The birthday candidate/outbox flow is scheduled daily at **09:00 AM Asia/Kolkata** using a cron expression. The notification worker polls the shared outbox every minute, and the reconciliation flow runs every five minutes. These are separate schedules with different responsibilities.
