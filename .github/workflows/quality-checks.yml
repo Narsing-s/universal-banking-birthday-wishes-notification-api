@@ -60,15 +60,18 @@ jobs:
           import re
           from pathlib import Path
 
-          html = Path("ui/index.html").read_text(encoding="utf-8")
-          scripts = re.findall(r"<script(?:\s[^>]*)?>(.*?)</script\s*>", html, flags=re.I | re.S)
-          if not scripts:
-              raise SystemExit("No inline JavaScript found in ui/index.html")
-          for index, script in enumerate(scripts, 1):
-              Path(f"/tmp/dashboard-{index}.js").write_text(script, encoding="utf-8")
-          print(f"Extracted {len(scripts)} inline script block(s)")
+          for page in ["ui/index.html", "src/main/resources/site/index.html"]:
+              html = Path(page).read_text(encoding="utf-8")
+              if "let API_BASES=" not in html:
+                  raise SystemExit(f"{page}: API_BASES must be mutable because API config loads at runtime")
+              scripts = re.findall(r"<script(?:\s[^>]*)?>(.*?)</script\s*>", html, flags=re.I | re.S)
+              if not scripts:
+                  raise SystemExit(f"No inline JavaScript found in {page}")
+              for index, script in enumerate(scripts, 1):
+                  Path(f"/tmp/{Path(page).parent.name}-dashboard-{index}.js").write_text(script, encoding="utf-8")
+              print(f"{page}: extracted {len(scripts)} inline script block(s)")
           PY
-          for file in /tmp/dashboard-*.js; do node --check "$file"; done
+          for file in /tmp/*-dashboard-*.js; do node --check "$file"; done
 
       - name: Validate dashboard API configuration
         run: |
